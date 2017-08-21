@@ -6,8 +6,7 @@ import (
 )
 
 func init() {
-    beego.Router("/", &controllers.MainController{})
+	beego.Router("/", &controllers.MainController{})
 
-	beego.Router("/addresses/bitcoin", &controllers.BitcoinController{})
-	beego.Router("/addresses/ethereum", &controllers.EthereumController{})
+	beego.Include(&controllers.TokenController{})
 }
