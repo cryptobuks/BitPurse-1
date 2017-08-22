@@ -45,6 +45,23 @@ func (ts *TokenService) Deposit(userId common.ID) *common.UserToken {
 
 	return ut
 }
+func Deposit(ts IService, userId common.ID) *common.UserToken {
+
+	// 存款的意思就是先检查用户是否已经生成了账户, 如果没有则先生成
+	// 并将用户加入监控列表, 一旦发现账户有变动, 则刷新数据库
+	// 监控用比特币的回调来做, 效率较高
+
+	ut := dao.GetTokenByUser(userId, ts.TokenType())
+	if ut == nil {
+		ta := ts.NewAddress()
+		ut = dao.NewTokenByUser(userId, ts.TokenType(), ta)
+		if len(ta) > 0 {
+			ts.Watch(userId)
+		}
+	}
+
+	return ut
+}
 
 var (
 	map_ = make(map[common.TOKEN]IService)

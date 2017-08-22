@@ -24,6 +24,7 @@ func InitBitcoin() IService {
 
 func (bs *BitcoinService) NewAddress() common.TokenAddress {
 
+	beego.Debug("Do something before new bitcoin address")
 	return bs.BitcoinRpc.NewAddress()
 }
 

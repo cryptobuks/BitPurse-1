@@ -36,28 +36,33 @@ func Connect() (*sql.DB, error) {
 }
 
 func GetTokenByUser(_userId common.ID, _tokenType common.TOKEN) *common.UserToken {
-
 	row := db.QueryRow("SELECT *  FROM UserToken WHERE UserId=? AND TokenType=?", _userId, _tokenType)
 	ut := new(common.UserToken)
 	err := row.Scan(&ut.UserTokenID, &ut.UserId, &ut.TokenType, &ut.TokenAddress, &ut.TokenBalance, &ut.TokenExtra)
 
-	if err != nil && err != sql.ErrNoRows {
-		beego.Error("GetTokenByUser failed", err)
+	if err == sql.ErrNoRows {
 		return nil
 	}
 	return ut
 }
 
 func NewTokenByUser(_userId common.ID, _tokenType common.TOKEN, _address common.TokenAddress) *common.UserToken {
-	row := db.QueryRow("SELECT *  FROM UserToken WHERE UserId=? AND TokenType=?", _userId, _tokenType)
-	ut := new(common.UserToken)
-	err := row.Scan(&ut.UserTokenID, &ut.UserId, &ut.TokenType, &ut.TokenAddress, &ut.TokenBalance, &ut.TokenExtra)
+	result, err := db.Exec(
+		"INSERT INTO UserToken (UserId, TokenType, TokenAddress, TokenBalance, TokenExtra) VALUES (?, ?, ?, ?, ?)",
+		_userId, _tokenType, string(_address), 0, "")
 
-	if err != nil && err != sql.ErrNoRows {
-		beego.Error("GetTokenByUser failed", err)
+	if err != nil {
+		beego.Error(err)
 		return nil
 	}
+	utId, err := result.LastInsertId()
+	ut := common.UserToken{
+		UserTokenID:  common.ID(utId),
+		UserId:       _userId,
+		TokenType:    uint8(_tokenType),
+		TokenAddress: string(_address),
+		TokenExtra:   "",
+	}
 
-	// TODO
-	return nil
+	return &ut
 }

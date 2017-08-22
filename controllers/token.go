@@ -33,13 +33,14 @@ func (bc *TokenController) NewBitcoinAddress() {
 func (bc *TokenController) Deposit(userId common.ID, token common.TOKEN) {
 	s := service.Get(token)
 
-	uk := s.Deposit(userId)
+	ut :=service.Deposit(s, userId)
+	//ut := s.Deposit(userId)
 
 	type Result struct {
 		Address string `json:"address"`
 	}
 
-	r := Result{Address: string(uk.TokenAddress)}
+	r := Result{Address: string(ut.TokenAddress)}
 	bc.Data["json"] = &r
 	bc.ServeJSON()
 }
