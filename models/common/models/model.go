@@ -1,9 +1,9 @@
 package models
 
 import (
-	"time"
-	"git.coding.net/zhouhuangjing/BitPurse/models/common/types"
 	"git.coding.net/zhouhuangjing/BitPurse/models/common/enums"
+	"git.coding.net/zhouhuangjing/BitPurse/models/common/types"
+	"time"
 )
 
 type UserToken struct {
@@ -15,7 +15,6 @@ type UserToken struct {
 	TokenAddress string
 	PrivateKey   string
 	TokenBalance float64
-	TokenExtra   string
 }
 
 type Withdrawal struct {
@@ -37,15 +36,15 @@ type User struct {
 	CreateTime   time.Time `orm:"auto_now_add;type(datetime)"`
 	UserPortrait string
 	UserIntro    string
-	Tokens       []*UserToken `orm:"reverse(many)"`
+	Tokens       []*UserToken   `orm:"reverse(many)"`
 	Withdrawals  []*Withdrawal  `orm:"reverse(many)"`
-	Records      []*TokenRecord  `orm:"reverse(many)"`
+	Records      []*TokenRecord `orm:"reverse(many)"`
 }
 
 type Token struct {
 	Id          types.ID
 	TokenType   enums.TOKEN `orm:"unique"`
-	TokenSymbol string `orm:"unique"`
+	TokenSymbol string      `orm:"unique"`
 	TokenName   string
 	TokenIntro  string
 }

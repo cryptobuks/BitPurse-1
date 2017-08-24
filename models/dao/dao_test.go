@@ -1,12 +1,12 @@
 package dao
 
 import (
-	"testing"
-	"os"
-	"git.coding.net/zhouhuangjing/BitPurse/models/common/models"
 	"git.coding.net/zhouhuangjing/BitPurse/models/common/enums"
-	"math/rand"
+	"git.coding.net/zhouhuangjing/BitPurse/models/common/models"
 	"github.com/astaxie/beego"
+	"math/rand"
+	"os"
+	"testing"
 )
 
 func TestCreateTables(t *testing.T) {
@@ -37,7 +37,6 @@ func TestORM(t *testing.T) {
 		TokenAddress: "111",
 		PrivateKey:   "pk",
 		TokenBalance: 34,
-		TokenExtra:   "test",
 		User:         u,
 		Token:        token,
 	}
@@ -56,14 +55,14 @@ func TestConnect(t *testing.T) {
 }
 func TestNewUser(t *testing.T) {
 	u := models.User{
-		UserName:     string(rand.Int()),
-		UserPassword: string(rand.Int()),
-		MailAddress:  string(rand.Int()),
-		MailCode:     string(rand.Int()),
-		PhoneNo:      string(rand.Int()),
-		CountryCode:  string(rand.Int()),
-		UserPortrait: string(rand.Int()),
-		UserIntro:    string(rand.Int()),
+		UserName:     string(rand.Intn(255)),
+		UserPassword: string(rand.Intn(255)),
+		MailAddress:  string(rand.Intn(255)),
+		MailCode:     string(rand.Intn(255)),
+		PhoneNo:      string(rand.Intn(255)),
+		CountryCode:  string(rand.Intn(255)),
+		UserPortrait: string(rand.Intn(255)),
+		UserIntro:    string(rand.Intn(255)),
 	}
 
 	res, err := orm_.Insert(&u)

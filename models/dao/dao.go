@@ -2,12 +2,12 @@ package dao
 
 import "database/sql"
 import (
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/astaxie/beego"
 	"git.coding.net/zhouhuangjing/BitPurse/models/common/enums"
-	"git.coding.net/zhouhuangjing/BitPurse/models/common/types"
 	"git.coding.net/zhouhuangjing/BitPurse/models/common/models"
+	"git.coding.net/zhouhuangjing/BitPurse/models/common/types"
+	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/orm"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 var db *sql.DB
@@ -64,7 +64,6 @@ func NewTokenByUser(_userId types.ID, _tokenID enums.TOKEN, _address string, _pr
 
 		TokenAddress: _address,
 		PrivateKey:   _privateKey,
-		TokenExtra:   "",
 	}
 	o.Insert(ut)
 

@@ -1,11 +1,11 @@
 package service
 
 import (
-	"git.coding.net/zhouhuangjing/BitPurse/models/dao"
-	"git.coding.net/zhouhuangjing/BitPurse/models/common"
-	"github.com/astaxie/beego"
 	"git.coding.net/zhouhuangjing/BitPurse/models/common/enums"
 	"git.coding.net/zhouhuangjing/BitPurse/models/common/models"
+	"git.coding.net/zhouhuangjing/BitPurse/models/common/types"
+	"git.coding.net/zhouhuangjing/BitPurse/models/dao"
+	"github.com/astaxie/beego"
 )
 
 type IService interface {
@@ -31,12 +31,6 @@ func (ts *TokenService) TokenType() enums.TOKEN {
 	return ts.tokenType_
 }
 
-// 创建提币地址, 用户不能直接提币到输入的地址, 而是要先创建地址, 然后提币的时候从创建好的地址中选择
-func NewWithdrawAddress(ts IService, userId types.ID) {
-
-}
-
-
 func Deposit(ts IService, userId types.ID) *models.UserToken {
 
 	// 存款的意思就是先检查用户是否已经生成了账户, 如果没有则先生成
@@ -55,9 +49,10 @@ func Deposit(ts IService, userId types.ID) *models.UserToken {
 	return ut
 }
 
-func Withdraw(ts IService, userId types.ID, _address types.ID) *models.UserToken {
+func Withdraw(ts IService, userId types.ID, _address types.ID, _amount float64) *models.UserToken {
 	//  提款的意思就是, 调用比特币的提款服务, 记得要添加记录
 
+	beego.Debug("needs implement", _address, _amount)
 	ut := dao.GetTokenByUser(userId, ts.TokenType())
 	if ut == nil {
 		beego.Error("no deposit address")

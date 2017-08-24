@@ -1,7 +1,9 @@
 package service
 
 import (
-	"git.coding.net/zhouhuangjing/BitPurse/models/common"
+	"git.coding.net/zhouhuangjing/BitPurse/models/common/enums"
+	"git.coding.net/zhouhuangjing/BitPurse/models/common/models"
+	"git.coding.net/zhouhuangjing/BitPurse/models/common/types"
 	"git.coding.net/zhouhuangjing/BitPurse/models/rpc"
 	"github.com/astaxie/beego"
 )
@@ -40,4 +42,3 @@ func (bs *BitcoinService) Withdraw(userId types.ID) {
 func (bs *BitcoinService) Watch(userId types.ID) {
 	beego.Debug("I am watching", bs.TokenType(), userId)
 }
-
