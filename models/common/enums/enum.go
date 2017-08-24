@@ -1,9 +1,10 @@
-package common
+package enums
 
-type TOKEN int
+type TOKEN uint8
 
 const (
 	TOKEN_UNKNOWN  TOKEN = iota
 	TOKEN_BITCOIN
 	TOKEN_ETHEREUM
 )
+

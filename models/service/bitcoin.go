@@ -12,32 +12,32 @@ type BitcoinService struct {
 }
 
 func InitBitcoin() IService {
-	bs := Get(common.TOKEN_BITCOIN)
+	bs := Get(enums.TOKEN_BITCOIN)
 	if bs == nil {
 		bs = new(BitcoinService)
-		bs.SetTokenType(common.TOKEN_BITCOIN)
-		Reg(common.TOKEN_BITCOIN, bs)
+		bs.SetTokenType(enums.TOKEN_BITCOIN)
+		Reg(enums.TOKEN_BITCOIN, bs)
 	}
 
 	return bs
 }
 
-func (bs *BitcoinService) NewAddress() common.TokenAddress {
+func (bs *BitcoinService) NewAddress() (string, string) {
 
 	beego.Debug("Do something before new bitcoin address")
 	return bs.BitcoinRpc.NewAddress()
 }
 
-func (bs *BitcoinService) Deposit(userId common.ID) *common.UserToken {
+func (bs *BitcoinService) Deposit(userId types.ID) *models.UserToken {
 	beego.Debug("Deposit", bs.TokenType())
 	return bs.TokenService.Deposit(userId)
 }
 
-func (bs *BitcoinService) Withdraw(userId common.ID) {
+func (bs *BitcoinService) Withdraw(userId types.ID) {
 
 }
 
-func (bs *BitcoinService) Watch(userId common.ID) {
+func (bs *BitcoinService) Watch(userId types.ID) {
 	beego.Debug("I am watching", bs.TokenType(), userId)
 }
 

@@ -4,7 +4,10 @@ import "database/sql"
 import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/astaxie/beego"
-	"git.coding.net/zhouhuangjing/BitPurse/models/common"
+	"git.coding.net/zhouhuangjing/BitPurse/models/common/enums"
+	"git.coding.net/zhouhuangjing/BitPurse/models/common/types"
+	"git.coding.net/zhouhuangjing/BitPurse/models/common/models"
+	"github.com/astaxie/beego/orm"
 )
 
 var db *sql.DB
@@ -35,34 +38,50 @@ func Connect() (*sql.DB, error) {
 	return db, err
 }
 
-func GetTokenByUser(_userId common.ID, _tokenType common.TOKEN) *common.UserToken {
-	row := db.QueryRow("SELECT *  FROM UserToken WHERE UserId=? AND TokenType=?", _userId, _tokenType)
-	ut := new(common.UserToken)
-	err := row.Scan(&ut.UserTokenID, &ut.UserId, &ut.TokenType, &ut.TokenAddress, &ut.TokenBalance, &ut.TokenExtra)
+func GetTokenByUser(_userId types.ID, _tokenID enums.TOKEN) *models.UserToken {
 
-	if err == sql.ErrNoRows {
+	qs := ORM().QueryTable(new(models.UserToken))
+	ut := new(models.UserToken)
+	err := qs.Filter("Token", _tokenID).Filter("User", _userId).One(ut)
+
+	if err == orm.ErrNoRows {
+		beego.Error(err)
 		return nil
 	}
 	return ut
 }
 
-func NewTokenByUser(_userId common.ID, _tokenType common.TOKEN, _address common.TokenAddress) *common.UserToken {
-	result, err := db.Exec(
-		"INSERT INTO UserToken (UserId, TokenType, TokenAddress, TokenBalance, TokenExtra) VALUES (?, ?, ?, ?, ?)",
-		_userId, _tokenType, string(_address), 0, "")
+func NewTokenByUser(_userId types.ID, _tokenID enums.TOKEN, _address string, _privateKey string) *models.UserToken {
 
-	if err != nil {
-		beego.Error(err)
-		return nil
-	}
-	utId, err := result.LastInsertId()
-	ut := common.UserToken{
-		UserTokenID:  common.ID(utId),
-		UserId:       _userId,
-		TokenType:    uint8(_tokenType),
-		TokenAddress: string(_address),
+	o := ORM()
+	// need confirm if needs query
+	u := &models.User{Id: _userId}
+	t := &models.Token{Id: types.ID(_tokenID)}
+
+	ut := &models.UserToken{
+		User:  u,
+		Token: t,
+
+		TokenAddress: _address,
+		PrivateKey:   _privateKey,
 		TokenExtra:   "",
 	}
+	o.Insert(ut)
 
-	return &ut
+	return ut
+}
+
+func NewToken(_type enums.TOKEN, _symbol string, _name string, _intro string) int64 {
+	t := models.Token{
+		TokenType:   _type,
+		TokenName:   _name,
+		TokenSymbol: _symbol,
+		TokenIntro:  _intro,
+	}
+	res, err := ORM().InsertOrUpdate(&t, "TokenType")
+	if err != nil {
+		beego.Error(err)
+		return -1
+	}
+	return res
 }

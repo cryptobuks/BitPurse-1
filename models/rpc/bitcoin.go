@@ -4,7 +4,6 @@ import (
 	"github.com/btcsuite/btcrpcclient"
 	"fmt"
 	"github.com/astaxie/beego"
-	"git.coding.net/zhouhuangjing/BitPurse/models/common"
 )
 
 var (
@@ -30,12 +29,19 @@ type BitcoinRpc struct {
 	IRpc
 }
 
-func (b *BitcoinRpc) NewAddress() common.TokenAddress {
+// 要记录公钥和私钥
+func (b *BitcoinRpc) NewAddress() (string, string) {
 	if address, err := client.GetNewAddress(""); err != nil {
 		beego.Error(err)
-		return common.TokenAddress("")
+		return "", ""
 	} else {
-		return common.TokenAddress(address.String())
+		pk, err := client.DumpPrivKey(address)
+		if err != nil {
+			beego.Error(err)
+			return "", ""
+		}
+
+		return address.String(), pk.String()
 	}
 }
 
