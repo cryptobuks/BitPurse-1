@@ -20,7 +20,7 @@ type UserToken struct {
 type Withdrawal struct {
 	Id      types.ID
 	User    *User `orm:"rel(fk)"`
-	Address uint8
+	Address string
 	Tag     string
 	Token   *Token `orm:"rel(fk)"`
 }
@@ -51,9 +51,9 @@ type Token struct {
 
 type TokenRecord struct {
 	Id            types.ID
-	RecordTime    uint64
+	RecordTime    time.Time `orm:"auto_now_add;type(datetime)"`
 	RecordType    uint8
 	Token         *Token `orm:"rel(fk)"`
-	TransactionId string
-	User          *User `orm:"rel(fk)"`
+	TransactionId string `orm:"unique"`
+	User          *User  `orm:"rel(fk)"`
 }
