@@ -30,9 +30,9 @@ func InitBitcoin() IService {
 		Reg(enums.TOKEN_BITCOIN, bs)
 	}
 
-	//initTicker()
-
 	initWatch()
+
+	beego.Info("init bitcoin service")
 
 	return bs
 }

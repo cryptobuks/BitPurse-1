@@ -1,6 +1,5 @@
 package dao
 
-import "database/sql"
 import (
 	"fmt"
 	"git.coding.net/zhouhuangjing/BitPurse/models/common/enums"
@@ -8,36 +7,7 @@ import (
 	"git.coding.net/zhouhuangjing/BitPurse/models/common/types"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/orm"
-	_ "github.com/go-sql-driver/mysql"
 )
-
-var db *sql.DB
-
-func Init() error {
-	var err error
-	db, err = Connect()
-	if err != nil {
-		beego.Error("init db failed", err)
-	}
-	return err
-}
-
-func Connect() (*sql.DB, error) {
-	if db != nil {
-		return db, nil
-	}
-
-	var err error
-	db, err = sql.Open("mysql", "root@/BitPurse")
-	if err == nil {
-		if err = db.Ping(); err != nil {
-			defer db.Close()
-			return db, err
-		}
-	}
-
-	return db, err
-}
 
 func GetTokenByUser(_userId types.ID, _tokenID enums.TOKEN) *models.UserToken {
 
@@ -152,4 +122,8 @@ func GetTokensByType(_t enums.TOKEN) []*models.UserToken {
 		return nil
 	}
 	return tokens
+}
+
+func init() {
+	InitORM()
 }

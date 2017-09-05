@@ -1,9 +1,9 @@
 package dao
 
 import (
-	_ "github.com/go-sql-driver/mysql" // import your required driver
-	"github.com/astaxie/beego/orm"
 	"github.com/astaxie/beego"
+	"github.com/astaxie/beego/orm"
+	_ "github.com/go-sql-driver/mysql" // import your required driver
 )
 
 var orm_ orm.Ormer
@@ -12,34 +12,34 @@ func GenerateTables(force bool) error {
 	// Database alias.
 	name := "default"
 
-	// Print log.
-	verbose := true
-
 	// Error.
-	err := orm.RunSyncdb(name, force, verbose)
+	err := orm.RunSyncdb(name, force, true)
 	if err != nil {
 		beego.Error(err)
 	}
 	return err
 }
 
-func initORM() {
+func ORM() orm.Ormer {
+	return orm_
+}
+
+func InitORM() {
 	orm.Debug = true
 	// set default database
-	err := orm.RegisterDataBase("default", "mysql", "root@/bit_purse?charset=utf8", 30)
+	ds := beego.AppConfig.String("dataSource")
+	if len(ds) == 0 {
+		beego.Warn("no data source")
+	}
+	err := orm.RegisterDataBase("default", "mysql", ds, 30)
 	if err != nil {
 		panic(err)
 	}
 
 	// register model
 	registerModels()
-}
 
-func ORM() orm.Ormer {
-	if orm_ == nil {
-		initORM()
-		orm_ = orm.NewOrm()
-	}
+	orm_ = orm.NewOrm()
 
-	return orm_
+	beego.Info("init orm ")
 }

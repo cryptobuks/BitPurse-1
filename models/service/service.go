@@ -95,3 +95,7 @@ func Get(_id enums.TOKEN) IService {
 func Reg(_id enums.TOKEN, _service IService) {
 	map_[_id] = _service
 }
+
+func init() {
+	InitBitcoin()
+}

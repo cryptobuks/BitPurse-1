@@ -1,4 +1,6 @@
-.idea/*
 BitPurse
-routers/commentsRouter____src_git_coding_net_zhouhuangjing_BitPurse_controllers.go
 *.tmp
+/routers/commentsRouter___________________Users_Tony_go_src_git_coding_net_zhouhuangjing_BitPurse_controllers.go
+.idea/
+static/css/
+static/img/

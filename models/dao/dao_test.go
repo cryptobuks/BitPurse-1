@@ -48,11 +48,6 @@ func TestORM(t *testing.T) {
 
 }
 
-func TestConnect(t *testing.T) {
-	if _, err := Connect(); err != nil {
-		t.Error("connect to mysql failed ", err)
-	}
-}
 func TestNewUser(t *testing.T) {
 	u := models.User{
 		UserName:     string(rand.Intn(255)),

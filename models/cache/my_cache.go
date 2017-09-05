@@ -8,6 +8,7 @@ import (
 
 	"github.com/garyburd/redigo/redis"
 
+	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/cache"
 )
 
@@ -222,6 +223,7 @@ func (rc *MyCache) connectInit() {
 	}
 }
 
-func init() {
+func InitMyCache() {
 	cache.Register("my", NewMyCache)
+	beego.Info("init my cache")
 }
