@@ -15,6 +15,7 @@ type UserToken struct {
 	TokenAddress string
 	PrivateKey   string
 	TokenBalance float64
+	LockBalance  float64
 }
 
 type Withdrawal struct {
@@ -47,13 +48,15 @@ type Token struct {
 	TokenSymbol string      `orm:"unique"`
 	TokenName   string
 	TokenIntro  string
+	TokenFee    float64
 }
 
 type TokenRecord struct {
 	Id            types.ID
 	RecordTime    time.Time `orm:"auto_now_add;type(datetime)"`
-	RecordType    uint8
+	RecordType    enums.OP
 	Token         *Token `orm:"rel(fk)"`
 	TransactionId string `orm:"unique"`
 	User          *User  `orm:"rel(fk)"`
+	RecordStatus  enums.TX
 }

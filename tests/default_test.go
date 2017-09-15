@@ -1,14 +1,13 @@
 package test
 
 import (
-	"net/http"
-	"net/http/httptest"
 	"path/filepath"
 	"runtime"
 	"testing"
 
 	"github.com/astaxie/beego"
-	. "github.com/smartystreets/goconvey/convey"
+	"time"
+	"fmt"
 )
 
 func init() {
@@ -17,27 +16,22 @@ func init() {
 	beego.TestBeegoInit(apppath)
 }
 
-// TestBeego is a sample to run an endpoint test
-func TestBeego(t *testing.T) {
-	r, _ := http.NewRequest("GET", "/", nil)
-	w := httptest.NewRecorder()
-	beego.BeeApp.Handlers.ServeHTTP(w, r)
-
-	beego.Trace("testing", "TestBeego", "Code[%d]\n%s", w.Code, w.Body.String())
-
-	Convey("Subject: Test Station Endpoint\n", t, func() {
-		Convey("Status Code Should Be 200", func() {
-			So(w.Code, ShouldEqual, 200)
-		})
-		Convey("The Result Should Not Be Empty", func() {
-			So(w.Body.Len(), ShouldBeGreaterThan, 0)
-		})
-	})
-}
-
 func TestConfig(t *testing.T) {
 	ds := beego.AppConfig.String("dataSource")
 	if len(ds) == 0 {
 		t.Error("no data source")
 	}
+}
+
+func TestTicker(t *testing.T) {
+	ticker := time.NewTicker(time.Second)
+
+	go func() {
+		for t := range ticker.C {
+			fmt.Println("Tick at", t)
+		}
+	}()
+	time.Sleep(time.Second * 1600)
+	ticker.Stop()
+	fmt.Println("Ticker stopped")
 }

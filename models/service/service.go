@@ -7,30 +7,28 @@ import (
 	"git.coding.net/zhouhuangjing/BitPurse/models/common/types"
 	"git.coding.net/zhouhuangjing/BitPurse/models/dao"
 	"github.com/astaxie/beego"
+	"time"
+	"strings"
+	"strconv"
 )
 
 type IService interface {
 	TokenType() enums.TOKEN
-	SetTokenType(token enums.TOKEN)
-	Deposit(userId types.ID) *models.UserToken
-	Withdraw(_address string, _amount float64)
+	Withdraw(_address string, _amount float64) string
 	Watch(_address string)
 	NewAddress() (string, string)
 	WalletNotify(_txId string) *models.TokenRecord
-}
-
-type TokenService struct {
-	IService
-
-	tokenType_ enums.TOKEN
-}
-
-func (ts *TokenService) SetTokenType(token enums.TOKEN) {
-	ts.tokenType_ = token
-}
-
-func (ts *TokenService) TokenType() enums.TOKEN {
-	return ts.tokenType_
+	User2Hot() string
+	IsUserAddress(_address string) bool
+	HotAddress() string
+	ColdAddress() string
+	FreeRate() float64
+	NewCold2HotTx() string
+	GetBalanceByAddress(_address string) float64
+	HotRate() float64
+	NewTx(_from []string, _to map[string]float64, _change string) string
+	SignTx(_tx string) (string, bool)
+	SendTx(_tx string) string
 }
 
 // category/type/btc/
@@ -74,7 +72,10 @@ func Withdraw(_token enums.TOKEN, _userId types.ID, _address types.ID, _amount f
 		return nil
 	}
 
-	ts.Withdraw(w.Address, _amount)
+	hash := ts.Withdraw(w.Address, _amount)
+	if hash != "" {
+		dao.NewTokenRecord(_userId, ts.TokenType(), enums.OP_SEND, hash)
+	}
 
 	return w
 }
@@ -82,6 +83,79 @@ func Withdraw(_token enums.TOKEN, _userId types.ID, _address types.ID, _amount f
 func WalletNotify(_token enums.TOKEN, _txId string) *models.TokenRecord {
 	ts := Get(_token)
 	return ts.WalletNotify(_txId)
+}
+
+func User2Hot() {
+
+	hotTime := beego.AppConfig.String("USER_2_HOT_TIME")
+
+	timeParts := strings.Split(hotTime, ":")
+	hour := 0
+	if h, err1 := strconv.Atoi(timeParts[0]); err1 == nil {
+		hour = h % 24
+	}
+
+	min := 0
+	if len(timeParts) > 1 {
+		if m, err2 := strconv.Atoi(timeParts[1]); err2 == nil {
+			min = m % 60
+		}
+	}
+	now := time.Now()
+	next := time.Date(now.Year(), now.Month(), now.Day(), hour, min, 0, 0, time.Local)
+
+	if now.Hour()*60+now.Minute() < hour*60+min {
+		next.Add(24 * time.Hour)
+	}
+
+	delay := time.Until(next)
+
+	timer := time.NewTimer(delay)
+	go func() {
+		<-timer.C
+		ticker := time.NewTicker(24 * time.Hour)
+		for t := range ticker.C {
+			beego.Info("User2Hot", t)
+			for token, s := range map_ {
+				if tx := s.User2Hot(); tx != "" {
+					dao.MarkRecordStatusStored(token)
+				}
+			}
+		}
+	}()
+}
+
+func SignTx(_token enums.TOKEN, _tx string) (string, bool) {
+	ts := Get(_token)
+	return ts.SignTx(_tx)
+}
+
+func SendTx(_token enums.TOKEN, _tx string) string {
+	ts := Get(_token)
+	return ts.SendTx(_tx)
+}
+
+// 得到冷钱包余额, 得到热钱包余额, 然后得到应该的转账金额, 生成一笔冷到热的交易
+
+// 先来个BalanceByAddress
+func NewCold2HotTx(_token enums.TOKEN) string {
+	ts := Get(_token)
+
+	hotBalance := ts.GetBalanceByAddress(ts.HotAddress())
+	coldBalance := ts.GetBalanceByAddress(ts.ColdAddress())
+
+	sum := coldBalance + hotBalance
+	hotRate := ts.HotRate()
+	if hotBalance < sum*hotRate {
+		amount := sum*hotRate - hotBalance
+		to := make(map[string]float64)
+		to[ts.HotAddress()] = amount
+		return ts.NewTx([]string{ts.ColdAddress()}, to, ts.HotAddress())
+	}
+
+	beego.Info("No need transfer from cold to hot since hot is greater than 10% ")
+
+	return ""
 }
 
 var (
@@ -98,4 +172,5 @@ func Reg(_id enums.TOKEN, _service IService) {
 
 func init() {
 	InitBitcoin()
+	User2Hot()
 }
