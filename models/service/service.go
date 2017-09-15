@@ -1,7 +1,6 @@
 package service
 
 import (
-	"git.coding.net/zhouhuangjing/BitPurse/models/cache"
 	"git.coding.net/zhouhuangjing/BitPurse/models/common/enums"
 	"git.coding.net/zhouhuangjing/BitPurse/models/common/models"
 	"git.coding.net/zhouhuangjing/BitPurse/models/common/types"
@@ -10,71 +9,70 @@ import (
 	"time"
 	"strings"
 	"strconv"
+	"fmt"
 )
 
 type IService interface {
-	TokenType() enums.TOKEN
+	TokenID() enums.TOKEN
 	Withdraw(_address string, _amount float64) string
-	Watch(_address string)
 	NewAddress() (string, string)
 	WalletNotify(_txId string) *models.TokenRecord
 	User2Hot() string
 	IsUserAddress(_address string) bool
 	HotAddress() string
 	ColdAddress() string
-	FreeRate() float64
+	FeeRate() float64
+	WithdrawFee() float64
 	NewCold2HotTx() string
 	GetBalanceByAddress(_address string) float64
+	GetBalanceByUser(_userID types.ID) float64
 	HotRate() float64
 	NewTx(_from []string, _to map[string]float64, _change string) string
 	SignTx(_tx string) (string, bool)
 	SendTx(_tx string) string
 }
 
-// category/type/btc/
-// 监控的时候将自己的地址放到集合里面, 这个操作是o1,
-// 执行的时候一次性取出来遍历,  列表和集合都可以, 优先列表吧, 操作比较多
-func Watch(_ts IService, _address string) {
-	c := cache.New("WATCH")
-	if c == nil {
-		return
-	}
-	c.Put(_address, _ts.TokenType(), 0)
-	_ts.Watch(_address)
-
-	beego.Info("watch", _ts.TokenType(), _address)
-}
 func Deposit(_token enums.TOKEN, _userId types.ID) *models.UserToken {
-
 	ts := Get(_token)
-	// 存款的意思就是先检查用户是否已经生成了账户, 如果没有则先生成
-	// 并将用户加入监控列表, 一旦发现账户有变动, 则刷新数据库
-	// 监控用比特币的回调来做, 效率较高
-
-	ut := dao.GetTokenByUser(_userId, ts.TokenType())
+	ut := dao.GetTokenByUser(_userId, ts.TokenID())
 	if ut == nil {
 		ta, pk := ts.NewAddress()
-		ut = dao.NewTokenByUser(_userId, ts.TokenType(), ta, pk)
-		if len(ta) > 0 {
-			Watch(ts, ta)
-		}
+		ut = dao.NewTokenByUser(_userId, ts.TokenID(), ta, pk)
 	}
 
 	return ut
 }
 
-func Withdraw(_token enums.TOKEN, _userId types.ID, _address types.ID, _amount float64) *models.Withdrawal {
-	ts := Get(_token)
+func Withdraw(_tokenID enums.TOKEN, _userID types.ID, _withdrawalID types.ID, _amount float64) *models.Withdrawal {
+	ts := Get(_tokenID)
 
-	w := dao.GetWithdrawal(_address)
-	if w.User.Id != _userId {
-		beego.Error("no right to withdraw", _userId, _address)
+	if _amount < ts.WithdrawFee() {
+		beego.Error("no enough withdraw fee", _amount, ts.WithdrawFee())
+		return nil
+	}
+	w := dao.GetWithdrawal(_withdrawalID)
+	if w.User.Id != _userID {
+		beego.Error("no right to withdraw", _userID, _withdrawalID)
 		return nil
 	}
 
-	hash := ts.Withdraw(w.Address, _amount)
-	if hash != "" {
-		dao.NewTokenRecord(_userId, ts.TokenType(), enums.OP_SEND, hash)
+	ut := dao.GetTokenByUser(_userID, _tokenID)
+	balance := ut.Balance()
+	if balance < _amount {
+		beego.Error("no enough balance", _amount, ts.WithdrawFee())
+		return nil
+	}
+
+	amount := _amount - ts.WithdrawFee()
+	hotBalance := ts.GetBalanceByAddress(ts.HotAddress())
+	if hotBalance < amount {
+		beego.Error("no enough hot balance", _amount, hotBalance)
+		return nil
+	}
+
+	if hash := ts.Withdraw(w.Address, amount); hash != "" {
+		dao.NewTokenRecord(_userID, ts.TokenID(), enums.OP_SEND, hash)
+		dao.UpdateLockBalance(_userID, ut.Lock(_amount))
 	}
 
 	return w
@@ -163,7 +161,10 @@ var (
 )
 
 func Get(_id enums.TOKEN) IService {
-	return map_[_id]
+	if r, ok := map_[_id]; ok {
+		return r
+	}
+	panic(fmt.Sprintf("No service %d", _id))
 }
 
 func Reg(_id enums.TOKEN, _service IService) {

@@ -122,7 +122,7 @@ func NewTokenByUser(_userId types.ID, _tokenID enums.TOKEN, _address string, _pr
 	o := ORM()
 	// need confirm if needs query
 	u := &models.User{Id: _userId}
-	t := &models.Token{Id: types.ID(_tokenID)}
+	t := &models.Token{Id: _tokenID}
 
 	ut := &models.UserToken{
 		User:  u,
@@ -136,13 +136,39 @@ func NewTokenByUser(_userId types.ID, _tokenID enums.TOKEN, _address string, _pr
 	return ut
 }
 
+func UnlockBalance(_userID types.ID, _amount float64) bool {
+	o := ORM()
+
+	ut := models.UserToken{Id: _userID, LockBalance: _amount}
+
+	if num, err := o.Update(ut, "LockBalance"); err != nil || num != 1 {
+		beego.Error("Lock balance failed", num, err)
+		return false
+	}
+
+	return true
+}
+
+func UpdateLockBalance(_userID types.ID, _balance float64) bool {
+	o := ORM()
+
+	ut := models.UserToken{Id: _userID, LockBalance: _balance}
+
+	if num, err := o.Update(ut, "LockBalance"); err != nil || num != 1 {
+		beego.Error("Lock balance failed", num, err)
+		return false
+	}
+
+	return true
+}
+
 //  1 deposit 2 withdraw
 func NewTokenRecord(_userId types.ID, _tokenID enums.TOKEN, _recordType enums.OP, _txId string) *models.TokenRecord {
 
 	o := ORM()
 	// need confirm if needs query
 	u := &models.User{Id: _userId}
-	t := &models.Token{Id: types.ID(_tokenID)}
+	t := &models.Token{Id: _tokenID}
 
 	tr := &models.TokenRecord{
 		User:          u,
@@ -161,30 +187,19 @@ func NewTokenRecord(_userId types.ID, _tokenID enums.TOKEN, _recordType enums.OP
 	return tr
 }
 
-func NewToken(_type enums.TOKEN, _symbol string, _name string, _intro string) int64 {
+func NewToken(_ID enums.TOKEN, _symbol string, _name string, _intro string) int64 {
 	t := models.Token{
-		TokenType:   _type,
+		Id:          _ID,
 		TokenName:   _name,
 		TokenSymbol: _symbol,
 		TokenIntro:  _intro,
 	}
-	res, err := ORM().InsertOrUpdate(&t, "TokenType")
+	res, err := ORM().InsertOrUpdate(&t, "TokenID")
 	if err != nil {
 		beego.Error(err)
 		return -1
 	}
 	return res
-}
-
-func GetTokensByType(_t enums.TOKEN) []*models.UserToken {
-	qs := ORM().QueryTable(new(models.UserToken))
-	var tokens []*models.UserToken
-	_, err := qs.Filter("Token__TokenType", _t).All(&tokens)
-	if err != nil {
-		beego.Error(err)
-		return nil
-	}
-	return tokens
 }
 
 func init() {

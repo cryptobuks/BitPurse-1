@@ -4,7 +4,6 @@ import "github.com/btcsuite/btcd/btcjson"
 
 type IRpc interface {
 	NewAddress() (string, string)
-	Watch(_address string)
 	ListUnspent() *[]btcjson.ListUnspentResult
 	Balance() float64
 	ListUnspentByAddress(_address string) *[]btcjson.ListUnspentResult

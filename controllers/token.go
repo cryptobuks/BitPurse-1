@@ -11,39 +11,38 @@ type TokenController struct {
 	beego.Controller
 }
 
-// TODO: 异步操作, 多重签名,  监控代币充值状态并更新记录, 以太坊, 矿工费比例(数据库),
-// TODO: 提币
-// @router /users/:_userId/tokens/:_token/deposit [post]
-func (tc *TokenController) Deposit(_userId types.ID, _token enums.TOKEN) {
+// @router /tokens/:_token/deposit [post]
+func (tc *TokenController) Deposit(_token enums.TOKEN) {
+	if userID, err := tc.GetInt("userID"); err == nil {
+		ut := service.Deposit(_token, types.ID(userID))
 
-	ut := service.Deposit(_token, _userId)
+		type Result struct {
+			Address string `json:"address"`
+		}
 
-	type Result struct {
-		Address string `json:"address"`
+		r := Result{Address: ut.TokenAddress}
+		tc.Data["json"] = &r
+		tc.ServeJSON()
 	}
 
-	r := Result{Address: ut.TokenAddress}
-	tc.Data["json"] = &r
-	tc.ServeJSON()
+	tc.CustomAbort(405, "Deposit:No UserID")
 }
 
 // post withdraw address id, amount
-// @router /users/:_userId/tokens/:_token/withdraw [post]
-func (tc *TokenController) Withdraw(_userId types.ID, _token enums.TOKEN) {
+// @router /tokens/:_token/withdraw [post]
+func (tc *TokenController) Withdraw(_token enums.TOKEN) {
 
 	addr, err1 := tc.GetInt("address")
-	if err1 != nil {
-		beego.Error(err1)
-		tc.Finish()
-	}
 
 	amount, err2 := tc.GetFloat("amount")
-	if err2 != nil {
-		beego.Error(err2)
-		tc.Finish()
+
+	userID, err3 := tc.GetInt("userID")
+	if err1 != nil || err2 != nil || err3 != nil {
+		beego.Error(err1, err2, err3)
+		tc.CustomAbort(405, "Deposit:Invalid ")
 	}
 
-	w := service.Withdraw(_token, _userId, types.ID(addr), amount)
+	w := service.Withdraw(_token, types.ID(userID), types.ID(addr), amount)
 
 	type Result struct {
 		Address string `json:"address"`
@@ -52,11 +51,6 @@ func (tc *TokenController) Withdraw(_userId types.ID, _token enums.TOKEN) {
 	r := Result{Address: w.Address}
 	tc.Data["json"] = &r
 	tc.ServeJSON()
-}
-
-// @router /users/:_userId/tokens/:_token/withdrawal [post]
-func (tc *TokenController) NewWithdrawal() {
-
 }
 
 // post withdraw address id, amount

@@ -195,15 +195,3 @@ func (_self *BitcoinRpc) GetTransaction(_txId string) *btcjson.GetTransactionRes
 	return nil
 }
 
-func (_self *BitcoinRpc) Watch(_address string) {
-	//address, err := btcutil.DecodeAddress(_address, &chaincfg.RegressionNetParams)
-	//if err != nil {
-	//	beego.Error(err)
-	//	return
-	//}
-	// need web socket, try walletnotify instead
-	//err1 := client_.NotifyReceived([]btcutil.Address{address})
-	//if err1 != nil {
-	//	beego.Error(err1)
-	//}
-}

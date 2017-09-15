@@ -6,18 +6,6 @@ import (
 	"time"
 )
 
-type UserToken struct {
-	Id   types.ID
-	User *User `orm:"rel(fk)"`
-
-	Token *Token `orm:"rel(fk)"`
-
-	TokenAddress string
-	PrivateKey   string
-	TokenBalance float64
-	LockBalance  float64
-}
-
 type Withdrawal struct {
 	Id      types.ID
 	User    *User `orm:"rel(fk)"`
@@ -43,8 +31,7 @@ type User struct {
 }
 
 type Token struct {
-	Id          types.ID
-	TokenType   enums.TOKEN `orm:"unique"`
+	Id          enums.TOKEN `orm:"pk"`
 	TokenSymbol string      `orm:"unique"`
 	TokenName   string
 	TokenIntro  string

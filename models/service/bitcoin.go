@@ -13,29 +13,16 @@ type BitcoinService struct {
 	IService
 }
 
-func initWatch() {
-	tokens := dao.GetTokensByType(enums.TOKEN_BITCOIN)
-	s := Get(enums.TOKEN_BITCOIN)
-	for _, t := range tokens {
-		s.Watch(t.TokenAddress)
-	}
-}
-
 func InitBitcoin() IService {
-	bs := Get(enums.TOKEN_BITCOIN)
-	if bs == nil {
-		bs = new(BitcoinService)
-		Reg(enums.TOKEN_BITCOIN, bs)
-	}
-
-	initWatch()
+	bs := new(BitcoinService)
+	Reg(enums.TOKEN_BITCOIN, bs)
 
 	beego.Info("init bitcoin service")
 
 	return bs
 }
 
-func (_self *BitcoinService) TokenType() enums.TOKEN {
+func (_self *BitcoinService) TokenID() enums.TOKEN {
 	return enums.TOKEN_BITCOIN
 }
 
@@ -58,7 +45,14 @@ func (_self *BitcoinService) NewTx(_from []string, _to map[string]float64, _chan
 	return _self.BitcoinRpc.NewTx(_from, _to, _change)
 }
 
-func (_self *BitcoinService) FreeRate() float64 {
+func (_self *BitcoinService) WithdrawFee() float64 {
+	if fee, err := beego.AppConfig.Float("WITHDRAW_FEE"); err == nil {
+		return fee
+	}
+	return 0
+}
+
+func (_self *BitcoinService) FeeRate() float64 {
 	if rate, err := beego.AppConfig.Float("FEE_RATE"); err == nil {
 		return rate
 	}
@@ -76,6 +70,7 @@ func (_self *BitcoinService) HotRate() float64 {
 	}
 	return -1
 }
+
 func (_self *BitcoinService) GetBalanceByAddress(_address string) float64 {
 	if tx := _self.BitcoinRpc.ListUnspentByAddress(_address); tx != nil {
 		amount := 0.0
@@ -174,8 +169,7 @@ func (_self *BitcoinService) Withdraw(_address string, _amount float64) string {
 
 // UTXO 比较特别, 所以接收和发送要分别处理
 func (_self *BitcoinService) WalletNotify(_txId string) *models.TokenRecord {
-	tx := _self.BitcoinRpc.GetTransaction(_txId)
-	if tx != nil {
+	if tx := _self.BitcoinRpc.GetTransaction(_txId); tx != nil {
 		for _, v := range tx.Details {
 			ut := dao.GetTokenByAddress(v.Address)
 			u := ut.User
@@ -186,22 +180,17 @@ func (_self *BitcoinService) WalletNotify(_txId string) *models.TokenRecord {
 
 			var tr *models.TokenRecord
 			if v.Category == "receive" {
-				tr = dao.NewTokenRecord(u.Id, ut.Token.TokenType, enums.OP_RECEIVE, _txId)
+				tr = dao.NewTokenRecord(u.Id, ut.Token.Id, enums.OP_RECEIVE, _txId)
 			} else if v.Category == "send" {
 				tr = dao.GetTokenRecordByTx(_txId)
 			}
 
 			dao.MarkRecordStatusDone(_txId)
+			dao.UpdateLockBalance(u.Id, ut.Unlock(v.Amount+_self.WithdrawFee()))
 
 			return tr
 		}
 	}
 
 	return nil
-}
-
-// 检查
-func (_self *BitcoinService) Watch(_address string) {
-	_self.BitcoinRpc.Watch(_address)
-	beego.Debug("I am watching", _self.TokenType(), _address)
 }
