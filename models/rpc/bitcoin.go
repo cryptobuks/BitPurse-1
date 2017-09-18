@@ -24,9 +24,9 @@ func init() {
 		HTTPPostMode: true, // Bitcoin core only supports HTTP POST mode
 		DisableTLS:   true, // Bitcoin core does not provide TLS by default
 
-		Host: "127.0.0.1:19011",
-		User: "admin2",
-		Pass: "123",
+		Host: beego.AppConfig.String("BITCOIN_HOST"),
+		User: beego.AppConfig.String("BITCOIN_USER"),
+		Pass: beego.AppConfig.String("BITCOIN_PASS"),
 	}, nil)
 	if err != nil {
 		fmt.Println("client_ init failed")
@@ -57,6 +57,14 @@ func (_self *BitcoinRpc) serializeTx(_tx *wire.MsgTx) string {
 		}
 	}
 	return ""
+}
+func parseAddress(_address string) *btcutil.Address {
+	if address, err1 := btcutil.DecodeAddress(_address, configs.GetNetParams()); err1 == nil {
+		return &address
+	}
+	beego.Error("Invalid address", _address)
+
+	return nil
 }
 
 func (_self *BitcoinRpc) ListUnspentByAddress(_address string) *[]btcjson.ListUnspentResult {
@@ -150,7 +158,7 @@ func (_self *BitcoinRpc) NewTx(_from []string, _to map[string]float64, _changeAd
 		}
 	}
 
-	change := toAmount - toAmount
+	change := fromAmount - toAmount
 	if change > 0 && len(_changeAddress) > 0 {
 		if address, err1 := btcutil.DecodeAddress(_changeAddress, configs.GetNetParams()); err1 == nil {
 			if amount, err2 := btcutil.NewAmount(change); err2 == nil {
@@ -195,3 +203,14 @@ func (_self *BitcoinRpc) GetTransaction(_txId string) *btcjson.GetTransactionRes
 	return nil
 }
 
+func (_self *BitcoinRpc) ValidateAddress(_address string) bool {
+
+	if addr := parseAddress(_address); addr != nil {
+		if r, err := client_.ValidateAddress(*addr); err == nil && r.IsValid {
+			return true
+		}
+	}
+
+	beego.Error("Invalid address", _address)
+	return false
+}

@@ -41,6 +41,10 @@ func (_self *BitcoinService) SendTx(_tx string) string {
 	return _self.BitcoinRpc.SendTx(_tx)
 }
 
+func (_self *BitcoinService) ValidateAddress(_address string) bool {
+	return _self.BitcoinRpc.ValidateAddress(_address)
+}
+
 func (_self *BitcoinService) NewTx(_from []string, _to map[string]float64, _change string) string {
 	return _self.BitcoinRpc.NewTx(_from, _to, _change)
 }

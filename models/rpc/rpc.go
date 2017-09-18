@@ -11,4 +11,5 @@ type IRpc interface {
 	SignTx(_tx string) (string, bool)
 	SendTx(_tx string) string
 	Transfer(_from []string, _to map[string]float64, _changeAddress string) string
+	ValidateAddress(_address string) bool
 }

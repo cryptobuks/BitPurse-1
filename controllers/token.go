@@ -5,6 +5,7 @@ import (
 	"git.coding.net/zhouhuangjing/BitPurse/models/common/types"
 	"git.coding.net/zhouhuangjing/BitPurse/models/service"
 	"github.com/astaxie/beego"
+	"fmt"
 )
 
 type TokenController struct {
@@ -14,18 +15,19 @@ type TokenController struct {
 // @router /tokens/:_token/deposit [post]
 func (tc *TokenController) Deposit(_token enums.TOKEN) {
 	if userID, err := tc.GetInt("userID"); err == nil {
-		ut := service.Deposit(_token, types.ID(userID))
+		if ut := service.Deposit(_token, types.ID(userID)); ut != nil {
+			type Result struct {
+				Address string `json:"address"`
+			}
 
-		type Result struct {
-			Address string `json:"address"`
+			r := Result{Address: ut.TokenAddress}
+			tc.Data["json"] = &r
+			tc.ServeJSON()
+			return
 		}
-
-		r := Result{Address: ut.TokenAddress}
-		tc.Data["json"] = &r
-		tc.ServeJSON()
 	}
 
-	tc.CustomAbort(405, "Deposit:No UserID")
+	tc.CustomAbort(405, fmt.Sprintf("Deposit failed %d", _token))
 }
 
 // post withdraw address id, amount
@@ -39,18 +41,22 @@ func (tc *TokenController) Withdraw(_token enums.TOKEN) {
 	userID, err3 := tc.GetInt("userID")
 	if err1 != nil || err2 != nil || err3 != nil {
 		beego.Error(err1, err2, err3)
-		tc.CustomAbort(405, "Deposit:Invalid ")
+		tc.CustomAbort(405, fmt.Sprintf("Withdraw Invalid %s %s %s", err1, err2, err3))
+		return
 	}
 
-	w := service.Withdraw(_token, types.ID(userID), types.ID(addr), amount)
+	if w := service.Withdraw(_token, types.ID(userID), types.ID(addr), amount); w != nil {
+		type Result struct {
+			Address string `json:"address"`
+		}
 
-	type Result struct {
-		Address string `json:"address"`
+		r := Result{Address: w.Address}
+		tc.Data["json"] = &r
+		tc.ServeJSON()
+		return
 	}
 
-	r := Result{Address: w.Address}
-	tc.Data["json"] = &r
-	tc.ServeJSON()
+	tc.CustomAbort(405, fmt.Sprintf("Withdraw failed %d %d %f %d", _token, addr, amount, userID))
 }
 
 // post withdraw address id, amount
@@ -130,4 +136,28 @@ func (tc *TokenController) NewCold2HotTx(_token enums.TOKEN) {
 	r := Result{Tx: tx}
 	tc.Data["json"] = &r
 	tc.ServeJSON()
+}
+
+// @router /tokens/:_token/withdrawal/new [post]
+func (tc *TokenController) NewWithdrawal(_token enums.TOKEN) () {
+	userID, err := tc.GetInt("userID")
+	address := tc.GetString("address")
+	tag := tc.GetString("tag")
+
+	if err != nil || len(address) == 0 || len(tag) == 0 {
+		tc.CustomAbort(405, fmt.Sprintf("New withdrawal failed %s %s %s", err, address, tag))
+		return
+	}
+	if w := service.NewWithdrawal(types.ID(userID), _token, address, tag); w > 0 {
+		type Result struct {
+			ID types.ID `json:"id"`
+		}
+
+		r := Result{ID: w}
+		tc.Data["json"] = &r
+		tc.ServeJSON()
+		return
+	}
+
+	tc.CustomAbort(405, fmt.Sprintf("New withdrawal failed %d %d %s %s", _token, userID, address, tag))
 }

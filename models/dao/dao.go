@@ -59,6 +59,36 @@ func MarkRecordStatusDone(_txID string) bool {
 	return true
 }
 
+func GetUser(_userID types.ID) *models.User {
+	o := ORM()
+	u := models.User{
+		Id: _userID,
+	}
+	if err := o.Read(&u); err == nil {
+		return &u
+	}
+
+	beego.Error("No user", _userID)
+	return nil
+}
+
+func NewWithdrawal(_userID types.ID, _token enums.TOKEN, _address string, _tag string) types.ID {
+	o := ORM()
+	w := &models.Withdrawal{
+		User:    &models.User{Id: _userID},
+		Address: _address,
+		Tag:     _tag,
+		Token:   &models.Token{Id: _token},
+	}
+
+	if r, err := o.Insert(w); err == nil && r > 0 {
+		return types.ID(r)
+	}
+
+	beego.Error("NewWithdrawal failed", _userID, _token, _address, _tag)
+	return -1
+}
+
 func GetTokenByUser(_userId types.ID, _tokenID enums.TOKEN) *models.UserToken {
 
 	qs := ORM().QueryTable(new(models.UserToken))
@@ -152,7 +182,7 @@ func UnlockBalance(_userID types.ID, _amount float64) bool {
 func UpdateLockBalance(_userID types.ID, _balance float64) bool {
 	o := ORM()
 
-	ut := models.UserToken{Id: _userID, LockBalance: _balance}
+	ut := &models.UserToken{Id: _userID, LockBalance: _balance}
 
 	if num, err := o.Update(ut, "LockBalance"); err != nil || num != 1 {
 		beego.Error("Lock balance failed", num, err)

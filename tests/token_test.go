@@ -1,4 +1,4 @@
-package test
+package tests
 
 import (
 	"fmt"
@@ -11,33 +11,7 @@ import (
 
 const HOST = "http://localhost:18080"
 
-func TestTokenController_Withdraw(t *testing.T) {
-	url := fmt.Sprintf("%s/users/1/tokens/1/withdraw", HOST)
-	req := httplib.Post(url)
-	req.Param("amount", "9.9")
-	req.Param("address", "1")
 
-	req.Debug(true)
-	if res, err := req.String(); err != nil {
-		t.Error(err)
-	} else {
-		beego.Debug(res)
-	}
-}
-
-func TestTokenController_Deposit(t *testing.T) {
-	url := fmt.Sprintf("%s/users/1/tokens/1/deposit", HOST)
-	req := httplib.Post(url)
-	req.Param("amount", "9.9")
-	req.Param("address", "1")
-
-	req.Debug(true)
-	if res, err := req.String(); err != nil {
-		t.Error(err)
-	} else {
-		beego.Debug(res)
-	}
-}
 
 func TestNewCache(t *testing.T) {
 	config := fmt.Sprintf(`{"conn": "127.0.0.1:6379", "key": "%s"}`, "Test")
