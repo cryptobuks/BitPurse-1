@@ -22,12 +22,76 @@ func InitBitcoin() IService {
 	return bs
 }
 
+func (_self *BitcoinService) CheckBalance() bool {
+	checked := true
+	if unspent := _self.BitcoinRpc.ListUnspent(); unspent != nil {
+		groupings := _self.BitcoinRpc.Address2BalanceMap()
+
+		unspentMap := make(map[string]float64)
+		unspentSum := 0.0
+		for k, u := range unspent {
+			if u.Address == "2NEhic4wTnBittzJru5r6SWP8LNjHjdE7nZ" {
+				beego.Debug("cold", k, u.Amount)
+			}
+			unspentMap[u.Address] = u.Amount
+			unspentSum += u.Amount
+
+			if amount, ok := groupings[u.Address]; !ok {
+				checked = false
+				beego.Error("Not found ", u.Address)
+			} else {
+				if amount != u.Amount {
+					checked = false
+					//beego.Error("Not equal ", u.Amount, amount)
+				}
+			}
+		}
+		beego.Debug("unspent ", unspentSum, len(unspentMap))
+
+		groupSum := 0.0
+		beego.Debug(len(unspent), len(groupings))
+		for address, amount := range groupings {
+			groupSum += amount
+			if ua, ok := unspentMap[address]; !ok {
+				checked = false
+				beego.Error("Not found ", address)
+			} else {
+				if amount != ua {
+					checked = false
+					//beego.Error("Not equal ", ua, amount)
+				}
+			}
+		}
+		beego.Debug("groupings ", groupSum, len(groupings))
+		if groupSum != unspentSum {
+			checked = false
+		}
+
+		beego.Debug("balance", _self.BitcoinRpc.Balance())
+	}
+
+	return checked
+}
+
+func (_self *BitcoinService) UnspentBalance() float64 {
+
+	if result := _self.BitcoinRpc.ListUnspent(); result != nil {
+		sum := 0.0
+		for _, v := range result {
+			sum += v.Amount
+		}
+		return sum
+	}
+
+	return -1
+}
+
 func (_self *BitcoinService) TokenID() enums.TOKEN {
 	return enums.TOKEN_BITCOIN
 }
 
 func (_self *BitcoinService) ColdAddress() string {
-	return beego.AppConfig.String("HOT_ADDRESS")
+	return beego.AppConfig.String("COLD_ADDRESS")
 }
 
 func (_self *BitcoinService) HotAddress() string {
@@ -69,16 +133,18 @@ func (_self *BitcoinService) IsUserAddress(_address string) bool {
 
 // ToDo: Load from database
 func (_self *BitcoinService) HotRate() float64 {
-	if rate, err := beego.AppConfig.Float("HOT_RATE"); err == nil {
+	if rate, err := beego.AppConfig.Float("HOT_RATE"); err == nil && rate > 0 && rate < 1 {
 		return rate
+	} else {
+		beego.Error("Invalid hot rate", rate)
+		return -1
 	}
-	return -1
 }
 
 func (_self *BitcoinService) GetBalanceByAddress(_address string) float64 {
 	if tx := _self.BitcoinRpc.ListUnspentByAddress(_address); tx != nil {
 		amount := 0.0
-		for _, v := range *tx {
+		for _, v := range tx {
 			amount += v.Amount
 		}
 		return amount
@@ -109,29 +175,84 @@ func (_self *BitcoinService) NewCold2HotTx() string {
 	return ""
 }
 
-func (_self *BitcoinService) User2Hot() string {
-	if list := _self.BitcoinRpc.ListUnspent(); list == nil {
-		var amount float64
-		var coldAmount float64
-		var hotAmount float64
-
+func (_self *BitcoinService) User2General() string {
+	if balanceMap := _self.BitcoinRpc.Address2BalanceMap(); balanceMap != nil {
 		from := make([]string, 0)
-		for _, v := range *list {
-			if _self.HotAddress() == v.Address {
-				hotAmount += v.Amount
-			} else if _self.ColdAddress() == v.Address {
-				coldAmount += v.Amount
-			} else {
-				amount += v.Amount
-				from = append(from, v.Address)
+		amount := 0.0
+		hotAddr := _self.HotAddress()
+		coldAddr := _self.ColdAddress()
+		for addr, balance := range balanceMap {
+			if balance > 0 && coldAddr != addr && hotAddr != addr {
+				from = append(from, addr)
+				amount += balance
 			}
+		}
+
+		hotAmount, ok1 := balanceMap[hotAddr]
+		coldAmount, ok2 := balanceMap[coldAddr]
+
+		if !ok1 || coldAmount == 0 || !ok2 || hotAmount == 0 {
+			beego.Error("no general amount", coldAmount, hotAmount)
+			return ""
 		}
 
 		to := make(map[string]float64)
 
 		sum := amount + coldAmount + hotAmount
-		if hotRate, err := beego.AppConfig.Float("HOT_RATE"); err == nil {
-			if hotAmount+amount/sum <= hotRate {
+		if hotRate := _self.HotRate(); hotRate > 0 {
+			if (hotAmount+amount)/sum <= hotRate {
+				to[hotAddr] = amount
+			} else {
+				toCold := (hotAmount + amount) - sum*hotRate
+				toHot := amount - toCold
+				to[hotAddr] = toHot
+				to[coldAddr] = toCold
+			}
+		}
+
+		if tx := _self.Transfer(from, to, hotAddr); tx != "" {
+			return tx
+		}
+	}
+
+	beego.Error("User2General failed")
+	return ""
+}
+
+func (_self *BitcoinService) User2GeneralOld() string {
+	if list := _self.BitcoinRpc.ListUnspent(); list != nil {
+		var amount float64
+		var coldAmount float64
+
+		from := make([]string, 0)
+		fromMap := make(map[string]interface{})
+		for _, v := range list {
+			if _self.ColdAddress() == v.Address {
+				coldAmount += v.Amount
+			} else if _self.HotAddress() != v.Address {
+				amount += v.Amount
+
+				if _, ok := fromMap[v.Address]; !ok {
+					from = append(from, v.Address)
+					var empty interface{}
+					fromMap[v.Address] = empty
+				}
+			}
+		}
+
+		balanceMap := _self.BitcoinRpc.Address2BalanceMap()
+		hotAmount, ok := balanceMap[_self.HotAddress()]
+
+		if !ok || coldAmount == 0 || hotAmount == 0 {
+			beego.Error("no general amount", coldAmount, hotAmount)
+			return ""
+		}
+
+		to := make(map[string]float64)
+
+		sum := amount + coldAmount + hotAmount
+		if hotRate := _self.HotRate(); hotRate > 0 {
+			if (hotAmount+amount)/sum <= hotRate {
 				to[_self.HotAddress()] = amount
 			} else {
 				toCold := (hotAmount + amount) - sum*hotRate
@@ -146,7 +267,7 @@ func (_self *BitcoinService) User2Hot() string {
 		}
 	}
 
-	beego.Error("User2Hot failed")
+	beego.Error("User2General failed")
 
 	return ""
 }

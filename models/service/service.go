@@ -16,7 +16,7 @@ type IService interface {
 	Withdraw(_address string, _amount float64) string
 	NewAddress() (string, string)
 	WalletNotify(_txId string) *models.TokenRecord
-	User2Hot() string
+	User2General() string
 	IsUserAddress(_address string) bool
 	HotAddress() string
 	ColdAddress() string
@@ -29,6 +29,8 @@ type IService interface {
 	SignTx(_tx string) (string, bool)
 	SendTx(_tx string) string
 	ValidateAddress(_address string) bool
+	UnspentBalance() float64
+	CheckBalance() bool
 }
 
 func Deposit(_token enums.TOKEN, _userId types.ID) *models.UserToken {
@@ -90,9 +92,9 @@ func WalletNotify(_token enums.TOKEN, _txId string) *models.TokenRecord {
 	return nil
 }
 
-func User2Hot() {
+func User2General(_timer chan *time.Timer, _ticker chan *time.Ticker) time.Duration {
 
-	hotTime := beego.AppConfig.String("USER_2_HOT_TIME")
+	hotTime := beego.AppConfig.String("USER_2_GENERAL_TIME")
 
 	timeParts := strings.Split(hotTime, ":")
 	hour := 0
@@ -106,28 +108,57 @@ func User2Hot() {
 			min = m % 60
 		}
 	}
-	now := time.Now()
-	next := time.Date(now.Year(), now.Month(), now.Day(), hour, min, 0, 0, time.Local)
+	sec := 0
+	if len(timeParts) > 2 {
+		if s, err2 := strconv.Atoi(timeParts[2]); err2 == nil {
+			sec = s % 60
+		}
+	}
 
-	if now.Hour()*60+now.Minute() < hour*60+min {
+	now := time.Now()
+	next := time.Date(now.Year(), now.Month(), now.Day(), hour, min, sec, 0, time.Local)
+
+	if now.Hour()*60*60+now.Minute()*60+now.Second() < hour*60*60+min*60+sec {
 		next.Add(24 * time.Hour)
 	}
 
 	delay := time.Until(next)
 
 	timer := time.NewTimer(delay)
+
+	tick := func() {
+		beego.Info("User2General tick")
+		for token, s := range map_ {
+			if tx := s.User2General(); tx != "" {
+				dao.MarkRecordStatusStored(token)
+			}
+		}
+	}
+
 	go func() {
-		<-timer.C
-		ticker := time.NewTicker(24 * time.Hour)
-		for t := range ticker.C {
-			beego.Info("User2Hot", t)
-			for token, s := range map_ {
-				if tx := s.User2Hot(); tx != "" {
-					dao.MarkRecordStatusStored(token)
+		for firstTime := range timer.C {
+			if _timer != nil {
+				_timer <- timer
+			}
+
+			beego.Info("User2General timer", firstTime)
+			go tick()
+			if i, err := time.ParseDuration(beego.AppConfig.String("USER_2_GENERAL_INTERVAL")); err == nil {
+				ticker := time.NewTicker(i)
+				for t := range ticker.C {
+					beego.Info("User2General ticker", t, i)
+					if _ticker != nil {
+						_ticker <- ticker
+					}
+					go tick()
 				}
+			} else {
+				beego.Error(err)
 			}
 		}
 	}()
+
+	return delay
 }
 
 func SignTx(_token enums.TOKEN, _tx string) (string, bool) {
@@ -204,7 +235,10 @@ func Reg(_id enums.TOKEN, _service IService) {
 	map_[_id] = _service
 }
 
-func init() {
+func Init() {
 	InitBitcoin()
-	User2Hot()
+	User2General(nil, nil)
+}
+
+func init() {
 }

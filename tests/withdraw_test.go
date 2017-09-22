@@ -44,5 +44,4 @@ func TestWithdraw_NewWithdrawal(t *testing.T) {
 
 		t.Error(resp.Status, string(body))
 	}
-
 }

@@ -18,6 +18,9 @@ func New(_key string) IMyCache {
 	return c.(IMyCache)
 }
 
-func init() {
+func Init() {
 	InitMyCache()
+}
+
+func init() {
 }

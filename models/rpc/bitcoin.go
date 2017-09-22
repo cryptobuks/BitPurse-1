@@ -11,14 +11,17 @@ import (
 	"bytes"
 	"encoding/hex"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/astaxie/beego/httplib"
+	"strconv"
+	"math/rand"
+	//"reflect"
 )
 
 var (
 	client_ *btcrpcclient.Client
 )
 
-func init() {
-
+func Init() {
 	var err error
 	client_, err = btcrpcclient.New(&btcrpcclient.ConnConfig{
 		HTTPPostMode: true, // Bitcoin core only supports HTTP POST mode
@@ -33,8 +36,76 @@ func init() {
 	}
 }
 
+func init() {
+
+}
+
 type BitcoinRpc struct {
 	IRpc
+}
+
+func (_self *BitcoinRpc) Address2BalanceMap() map[string]float64 {
+
+	result := _self.Call("listaddressgroupings", map[string]interface{}{})
+
+	if r1, ok := result.([]interface{}); ok {
+		m := make(map[string]float64)
+		for _, v1 := range r1 {
+			if r2, ok := v1.([]interface{}); ok {
+				for _, v2 := range r2 {
+					if v, ok := v2.([]interface{}); ok {
+						addr := fmt.Sprintf("%s", v[0])
+						amountStr := fmt.Sprintf("%f", v[1])
+						if amount, err := strconv.ParseFloat(amountStr, 64); err == nil && amount > 0 {
+							m[addr] = amount
+						}
+					}
+				}
+			}
+		}
+		return m
+
+	} else {
+		beego.Error("ListAddressGroupings conversion failed", result)
+	}
+
+	return nil
+}
+
+func (_self *BitcoinRpc) Call(method string, params map[string]interface{}) interface{} {
+	host := beego.AppConfig.String("BITCOIN_HOST")
+	url := fmt.Sprintf("http://%s", host)
+	user := beego.AppConfig.String("BITCOIN_USER")
+	pass := beego.AppConfig.String("BITCOIN_PASS")
+
+	req := httplib.Post(url)
+	req.SetBasicAuth(user, pass)
+
+	id := rand.Int()
+	reqData := map[string]interface{}{
+		"jsonrpc": "1.0",
+		"method":  method,
+		"params":  params,
+		"id":      id,
+	}
+	if jsReq, err := req.JSONBody(reqData); err == nil {
+
+		type Results struct {
+			Result interface{}            `json:"result"`
+			Error  map[string]interface{} `json:"error"`
+			ID     int                    `json:"id"`
+		}
+
+		var r Results
+		if err := jsReq.ToJSON(&r); err == nil && r.ID == id {
+			return r.Result
+		} else {
+			beego.Error(r.Error)
+		}
+	} else {
+		beego.Error(err)
+	}
+	return nil
 }
 
 func (_self *BitcoinRpc) parseTx(_tx string) *wire.MsgTx {
@@ -67,7 +138,7 @@ func parseAddress(_address string) *btcutil.Address {
 	return nil
 }
 
-func (_self *BitcoinRpc) ListUnspentByAddress(_address string) *[]btcjson.ListUnspentResult {
+func (_self *BitcoinRpc) ListUnspentByAddress(_address string) []btcjson.ListUnspentResult {
 	if address, err1 := btcutil.DecodeAddress(_address, configs.GetNetParams()); err1 == nil {
 		unspent, err2 := client_.ListUnspentMinMaxAddresses(1, 9999999, []btcutil.Address{address})
 		if err2 != nil {
@@ -75,7 +146,7 @@ func (_self *BitcoinRpc) ListUnspentByAddress(_address string) *[]btcjson.ListUn
 			return nil
 		}
 
-		return &unspent
+		return unspent
 	}
 
 	return nil
@@ -90,13 +161,14 @@ func (_self *BitcoinRpc) Balance() float64 {
 	return r.ToBTC()
 }
 
-func (_self *BitcoinRpc) ListUnspent() *[]btcjson.ListUnspentResult {
-	r, err1 := client_.ListUnspent()
-	if err1 != nil {
-		beego.Error(err1)
-		return nil
+//  cannot calculate hot address since hot address may be change address
+func (_self *BitcoinRpc) ListUnspent() []btcjson.ListUnspentResult {
+	if r, err := client_.ListUnspent(); err == nil {
+		return r
+	} else {
+		beego.Error(err)
 	}
-	return &r
+	return nil
 }
 
 func (_self *BitcoinRpc) Transfer(_from []string, _to map[string]float64, _changeAddress string) string {
@@ -130,6 +202,10 @@ func (_self *BitcoinRpc) SignTx(_tx string) (string, bool) {
 }
 
 func (_self *BitcoinRpc) NewTx(_from []string, _to map[string]float64, _changeAddress string) string {
+	if len(_from) == 0 || len(_to) == 0 {
+		beego.Error("[NewTx]No from or to", _from, _to)
+		return ""
+	}
 
 	addresses := make([]btcutil.Address, 0)
 	for _, v := range _from {
@@ -145,6 +221,9 @@ func (_self *BitcoinRpc) NewTx(_from []string, _to map[string]float64, _changeAd
 			fromAmount += v.Amount
 			inputs = append(inputs, btcjson.TransactionInput{Txid: v.TxID, Vout: v.Vout})
 		}
+	} else {
+		beego.Error(err)
+		return ""
 	}
 
 	toAmount := 0.0
@@ -159,12 +238,17 @@ func (_self *BitcoinRpc) NewTx(_from []string, _to map[string]float64, _changeAd
 	}
 
 	change := fromAmount - toAmount
-	if change > 0 && len(_changeAddress) > 0 {
-		if address, err1 := btcutil.DecodeAddress(_changeAddress, configs.GetNetParams()); err1 == nil {
-			if amount, err2 := btcutil.NewAmount(change); err2 == nil {
-				amounts[address] = amount
+	if change > 0 {
+		if len(_changeAddress) > 0 {
+			if address, err1 := btcutil.DecodeAddress(_changeAddress, configs.GetNetParams()); err1 == nil {
+				if amount, err2 := btcutil.NewAmount(change); err2 == nil {
+					amounts[address] = amount
+				}
 			}
 		}
+	} else if change < 0 {
+		beego.Error("negative change", change)
+		return ""
 	}
 
 	var lockTime int64 = 0

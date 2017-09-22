@@ -232,6 +232,9 @@ func NewToken(_ID enums.TOKEN, _symbol string, _name string, _intro string) int6
 	return res
 }
 
-func init() {
+func Init() {
 	InitORM()
+}
+
+func init() {
 }
