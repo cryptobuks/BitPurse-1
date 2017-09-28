@@ -115,11 +115,12 @@ func User2General(_timer chan *time.Timer, _ticker chan *time.Ticker) time.Durat
 		}
 	}
 
-	now := time.Now()
+	now := time.Now().Local()
 	next := time.Date(now.Year(), now.Month(), now.Day(), hour, min, sec, 0, time.Local)
 
-	if now.Hour()*60*60+now.Minute()*60+now.Second() < hour*60*60+min*60+sec {
-		next.Add(24 * time.Hour)
+	if now.Hour()*60*60+now.Minute()*60+now.Second() > hour*60*60+min*60+sec {
+		//next.Add(24 * time.Hour) Add won't change subject
+		next = next.Add(24 * time.Hour)
 	}
 
 	delay := time.Until(next)
@@ -127,7 +128,6 @@ func User2General(_timer chan *time.Timer, _ticker chan *time.Ticker) time.Durat
 	timer := time.NewTimer(delay)
 
 	tick := func() {
-		beego.Info("User2General tick")
 		for token, s := range map_ {
 			if tx := s.User2General(); tx != "" {
 				dao.MarkRecordStatusStored(token)
@@ -136,20 +136,20 @@ func User2General(_timer chan *time.Timer, _ticker chan *time.Ticker) time.Durat
 	}
 
 	go func() {
-		for firstTime := range timer.C {
+		for first := range timer.C {
 			if _timer != nil {
 				_timer <- timer
 			}
+			beego.Info("UserGeneral begins", first)
 
-			beego.Info("User2General timer", firstTime)
 			go tick()
 			if i, err := time.ParseDuration(beego.AppConfig.String("USER_2_GENERAL_INTERVAL")); err == nil {
 				ticker := time.NewTicker(i)
 				for t := range ticker.C {
-					beego.Info("User2General ticker", t, i)
 					if _ticker != nil {
 						_ticker <- ticker
 					}
+					beego.Info("UserGeneral ticks", t)
 					go tick()
 				}
 			} else {

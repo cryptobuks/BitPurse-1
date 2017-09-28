@@ -296,26 +296,31 @@ func (_self *BitcoinService) Withdraw(_address string, _amount float64) string {
 func (_self *BitcoinService) WalletNotify(_txId string) *models.TokenRecord {
 	if tx := _self.BitcoinRpc.GetTransaction(_txId); tx != nil {
 		for _, v := range tx.Details {
-			ut := dao.GetTokenByAddress(v.Address)
-			u := ut.User
-			if u == nil {
-				beego.Error("user is nil")
+			if ut := dao.GetTokenByAddress(v.Address); ut != nil {
+				u := ut.User
+				if u == nil {
+					beego.Error("user is nil")
+					return nil
+				}
+
+				var tr *models.TokenRecord
+				if v.Category == "receive" {
+					tr = dao.NewTokenRecord(u.Id, ut.Token.Id, enums.OP_RECEIVE, _txId)
+				} else if v.Category == "send" {
+					tr = dao.GetTokenRecordByTx(_txId)
+				}
+
+				dao.MarkRecordStatusDone(_txId)
+				dao.UpdateLockBalance(u.Id, ut.Unlock(v.Amount+_self.WithdrawFee()))
+
+				return tr
+			} else {
+				beego.Warn("[WalletNotify]No user token", v.Address, _txId)
 				return nil
 			}
-
-			var tr *models.TokenRecord
-			if v.Category == "receive" {
-				tr = dao.NewTokenRecord(u.Id, ut.Token.Id, enums.OP_RECEIVE, _txId)
-			} else if v.Category == "send" {
-				tr = dao.GetTokenRecordByTx(_txId)
-			}
-
-			dao.MarkRecordStatusDone(_txId)
-			dao.UpdateLockBalance(u.Id, ut.Unlock(v.Amount+_self.WithdrawFee()))
-
-			return tr
 		}
 	}
 
+	beego.Error("[WalletNotify]Failed", _txId)
 	return nil
 }

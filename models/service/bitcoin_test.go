@@ -11,6 +11,10 @@ import (
 	"fmt"
 )
 
+func TestWatchNotify(t *testing.T) {
+
+}
+
 func TestBitcoinService_User2General(t *testing.T) {
 
 	beego.Debug("TestBitcoinService_User2General")

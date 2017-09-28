@@ -62,6 +62,7 @@ func (tc *TokenController) Withdraw(_token enums.TOKEN) {
 // post withdraw address id, amount
 // @router /tokens/:_token/tx/:_txId/notify [get]
 func (tc *TokenController) WatchNotify(_token enums.TOKEN, _txId string) {
+	beego.Debug("notify watching..", _txId)
 	tr := service.WalletNotify(_token, _txId)
 	if tr == nil {
 		beego.Error(_token, _txId)
@@ -127,15 +128,17 @@ func (tc *TokenController) SendTx(_token enums.TOKEN) {
 
 // @router /tokens/:_token/cold2hot/new [post]
 func (tc *TokenController) NewCold2HotTx(_token enums.TOKEN) {
-	tx := service.NewCold2HotTx(_token)
+	if tx := service.NewCold2HotTx(_token); tx != "" {
+		type Result struct {
+			Tx string `json:"tx"`
+		}
 
-	type Result struct {
-		Tx string `json:"tx"`
+		r := Result{Tx: tx}
+		tc.Data["json"] = &r
+		tc.ServeJSON()
+	} else {
+		tc.CustomAbort(405, fmt.Sprintf("NewCold2HotTx failed %d", _token))
 	}
-
-	r := Result{Tx: tx}
-	tc.Data["json"] = &r
-	tc.ServeJSON()
 }
 
 // @router /tokens/:_token/withdrawal/new [post]

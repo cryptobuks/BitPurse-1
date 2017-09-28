@@ -12,9 +12,8 @@ import (
 	"encoding/hex"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/astaxie/beego/httplib"
-	"strconv"
 	"math/rand"
-	//"reflect"
+	"encoding/json"
 )
 
 var (
@@ -46,33 +45,28 @@ type BitcoinRpc struct {
 
 func (_self *BitcoinRpc) Address2BalanceMap() map[string]float64 {
 
-	result := _self.Call("listaddressgroupings", map[string]interface{}{})
+	r := new([][][]interface{})
+	if ok := _self.Call("listaddressgroupings", []interface{}{}, r); ok {
 
-	if r1, ok := result.([]interface{}); ok {
 		m := make(map[string]float64)
-		for _, v1 := range r1 {
-			if r2, ok := v1.([]interface{}); ok {
-				for _, v2 := range r2 {
-					if v, ok := v2.([]interface{}); ok {
-						addr := fmt.Sprintf("%s", v[0])
-						amountStr := fmt.Sprintf("%f", v[1])
-						if amount, err := strconv.ParseFloat(amountStr, 64); err == nil && amount > 0 {
-							m[addr] = amount
-						}
+		for _, v1 := range *r {
+			for _, v2 := range v1 {
+				if addr, ok := v2[0].(string); ok {
+					if amount, ok := v2[1].(float64); ok {
+						m[addr] = amount
 					}
 				}
 			}
 		}
 		return m
-
-	} else {
-		beego.Error("ListAddressGroupings conversion failed", result)
 	}
+
+	beego.Error("[Address2BalanceMap]Failed")
 
 	return nil
 }
 
-func (_self *BitcoinRpc) Call(method string, params map[string]interface{}) interface{} {
+func (_self *BitcoinRpc) Call(method string, params []interface{}, v interface{}) bool {
 	host := beego.AppConfig.String("BITCOIN_HOST")
 	url := fmt.Sprintf("http://%s", host)
 	user := beego.AppConfig.String("BITCOIN_USER")
@@ -96,17 +90,33 @@ func (_self *BitcoinRpc) Call(method string, params map[string]interface{}) inte
 			ID     int                    `json:"id"`
 		}
 
+		// ReadAll will disable ToJSON since the buffer is empty !!!!!
+		//body, _ := ioutil.ReadAll(jsReq.GetRequest().Body)
+		//beego.Debug(string(body))
+
 		var r Results
 		if err := jsReq.ToJSON(&r); err == nil && r.ID == id {
-			return r.Result
+			buf := new(bytes.Buffer)
+
+			encoder := json.NewEncoder(buf)
+			if err := encoder.Encode(r.Result); err == nil {
+				if err := json.Unmarshal(buf.Bytes(), v); err == nil {
+					return true
+				} else {
+					beego.Error(err)
+				}
+			} else {
+				beego.Error(err)
+			}
 		} else {
 			beego.Error(r.Error)
 		}
 	} else {
 		beego.Error(err)
 	}
-	return nil
+	return false
 }
+
 
 func (_self *BitcoinRpc) parseTx(_tx string) *wire.MsgTx {
 	if serializedTx, err := hex.DecodeString(_tx); err == nil {
@@ -209,8 +219,20 @@ func (_self *BitcoinRpc) NewTx(_from []string, _to map[string]float64, _changeAd
 
 	addresses := make([]btcutil.Address, 0)
 	for _, v := range _from {
-		if address, err1 := btcutil.DecodeAddress(v, configs.GetNetParams()); err1 == nil {
-			addresses = append(addresses, address)
+		if address := parseAddress(v); address != nil {
+			addresses = append(addresses, *address)
+		}
+	}
+
+	toAmount := 0.0
+	amounts := make(map[btcutil.Address]btcutil.Amount)
+	for to, a := range _to {
+		toAmount += a
+		if address := parseAddress(to); address != nil {
+			if amount, err2 := btcutil.NewAmount(a); err2 == nil {
+				amounts[*address] = amount
+			}
+
 		}
 	}
 
@@ -220,40 +242,46 @@ func (_self *BitcoinRpc) NewTx(_from []string, _to map[string]float64, _changeAd
 		for _, v := range unspent {
 			fromAmount += v.Amount
 			inputs = append(inputs, btcjson.TransactionInput{Txid: v.TxID, Vout: v.Vout})
+			if fromAmount >= toAmount {
+				break
+			}
 		}
 	} else {
 		beego.Error(err)
 		return ""
 	}
 
-	toAmount := 0.0
-	amounts := make(map[btcutil.Address]btcutil.Amount)
-	for to, a := range _to {
-		toAmount += a
-		if address, err1 := btcutil.DecodeAddress(to, configs.GetNetParams()); err1 == nil {
-			if amount, err2 := btcutil.NewAmount(a); err2 == nil {
-				amounts[address] = amount
-			}
-		}
-	}
-
-	change := fromAmount - toAmount
-	if change > 0 {
-		if len(_changeAddress) > 0 {
-			if address, err1 := btcutil.DecodeAddress(_changeAddress, configs.GetNetParams()); err1 == nil {
-				if amount, err2 := btcutil.NewAmount(change); err2 == nil {
-					amounts[address] = amount
-				}
-			}
-		}
-	} else if change < 0 {
-		beego.Error("negative change", change)
-		return ""
-	}
-
 	var lockTime int64 = 0
 	if tx, err3 := client_.CreateRawTransaction(inputs, amounts, &lockTime); err3 == nil {
-		return _self.serializeTx(tx)
+		rawTx := _self.serializeTx(tx)
+
+		type FundRawTransactionOptions struct {
+			ChangeAddress          string `json:"changeAddress"`
+			ChangePosition         int    `json:"changePosition"`
+			SubtractFeeFromOutputs []int  `json:"subtractFeeFromOutputs"`
+		}
+
+		fee := []int{}
+		for i := 0; i < len(amounts); i++ {
+			fee = append(fee, i)
+		}
+
+		o := FundRawTransactionOptions{
+			ChangeAddress:          _changeAddress,
+			ChangePosition:         len(amounts),
+			SubtractFeeFromOutputs: fee,
+		}
+
+		type FundRawTransactionResult struct {
+			Hex       string  `json:"hex"`
+			Fee       float64 `json:"fee"`
+			ChangePos int     `json:"changepos"`
+		}
+
+		r := new(FundRawTransactionResult)
+		if ok := _self.Call("fundrawtransaction", []interface{}{rawTx, o}, r); ok {
+			return r.Hex
+		}
 	}
 
 	return ""
