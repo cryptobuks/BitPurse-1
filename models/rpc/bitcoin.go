@@ -1,28 +1,28 @@
 package rpc
 
 import (
-	"fmt"
-	"github.com/astaxie/beego"
-	"github.com/btcsuite/btcd/btcjson"
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"github.com/btcsuite/btcrpcclient"
-	"github.com/btcsuite/btcutil"
-	"git.coding.net/zhouhuangjing/BitPurse/models/common/configs"
 	"bytes"
 	"encoding/hex"
-	"github.com/btcsuite/btcd/wire"
-	"github.com/astaxie/beego/httplib"
-	"math/rand"
 	"encoding/json"
+	"fmt"
+	"git.coding.net/zhouhuangjing/BitPurse/models/common/configs"
+	"github.com/astaxie/beego"
+	"github.com/astaxie/beego/httplib"
+	"github.com/btcsuite/btcd/btcjson"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/rpcclient"
+	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcutil"
+	"math/rand"
 )
 
 var (
-	client_ *btcrpcclient.Client
+	client_ *rpcclient.Client
 )
 
 func Init() {
 	var err error
-	client_, err = btcrpcclient.New(&btcrpcclient.ConnConfig{
+	client_, err = rpcclient.New(&rpcclient.ConnConfig{
 		HTTPPostMode: true, // Bitcoin core only supports HTTP POST mode
 		DisableTLS:   true, // Bitcoin core does not provide TLS by default
 
@@ -116,7 +116,6 @@ func (_self *BitcoinRpc) Call(method string, params []interface{}, v interface{}
 	}
 	return false
 }
-
 
 func (_self *BitcoinRpc) parseTx(_tx string) *wire.MsgTx {
 	if serializedTx, err := hex.DecodeString(_tx); err == nil {
