@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"testing"
+	"git.coding.net/zhouhuangjing/BitPurse/tests"
 )
 
 func TestCreateTables(t *testing.T) {
@@ -101,6 +102,10 @@ func TestGetTokenByUserEmpty(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
+
+	if err := tests.Init(); err == nil {
+		Init()
+	}
 
 	ORM()
 	retCode := m.Run()
