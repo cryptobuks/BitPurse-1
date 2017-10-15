@@ -77,7 +77,7 @@ func Withdraw(_tokenID enums.TOKEN, _userID types.ID, _withdrawalID types.ID, _a
 
 		if hash := ts.Withdraw(w.Address, amount); hash != "" {
 			dao.NewTokenRecord(_userID, ts.TokenID(), enums.OP_SEND, hash)
-			dao.UpdateLockBalance(_userID, ut.Lock(_amount))
+			dao.UpdateLockBalance(ut.Id, ut.Lock(_amount))
 		}
 		return w
 	}

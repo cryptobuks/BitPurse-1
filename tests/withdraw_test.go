@@ -31,9 +31,9 @@ func TestTokenController_Withdraw(t *testing.T) {
 func TestWithdraw_NewWithdrawal(t *testing.T) {
 	url := fmt.Sprintf("%s/tokens/1/withdrawal/new", HOST)
 	req := httplib.Post(url)
-	req.Param("tag", "test tag")
+	req.Param("tag", "测试tag")
 	req.Param("address", "2NEhic4wTnBittzJru5r6SWP8LNjHjdE7nZ")
-	req.Param("userID", "1")
+	req.Param("userID", "7")
 
 	req.Debug(true)
 

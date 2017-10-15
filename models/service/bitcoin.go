@@ -305,13 +305,21 @@ func (_self *BitcoinService) WalletNotify(_txId string) *models.TokenRecord {
 
 				var tr *models.TokenRecord
 				if v.Category == "receive" {
-					tr = dao.NewTokenRecord(u.Id, ut.Token.Id, enums.OP_RECEIVE, _txId)
+					if tx.Confirmations == 0 {
+						tr = dao.NewTokenRecord(u.Id, ut.Token.Id, enums.OP_RECEIVE, _txId)
+					} else {
+						tr = dao.GetTokenRecordByTx(_txId)
+						dao.UpdateTokenBalance(ut.Id, ut.TokenBalance+v.Amount)
+						dao.MarkRecordStatusDone(_txId)
+					}
 				} else if v.Category == "send" {
 					tr = dao.GetTokenRecordByTx(_txId)
+					if tx.Confirmations > 0 {
+						dao.UpdateLockBalance(ut.Id, ut.Unlock(v.Amount+_self.WithdrawFee()))
+						dao.UpdateTokenBalance(ut.Id, ut.TokenBalance-v.Amount)
+						dao.MarkRecordStatusDone(_txId)
+					}
 				}
-
-				dao.MarkRecordStatusDone(_txId)
-				dao.UpdateLockBalance(u.Id, ut.Unlock(v.Amount+_self.WithdrawFee()))
 
 				return tr
 			} else {
@@ -320,7 +328,5 @@ func (_self *BitcoinService) WalletNotify(_txId string) *models.TokenRecord {
 			}
 		}
 	}
-
-	beego.Error("[WalletNotify]Failed", _txId)
 	return nil
 }

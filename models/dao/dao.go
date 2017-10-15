@@ -166,23 +166,23 @@ func NewTokenByUser(_userId types.ID, _tokenID enums.TOKEN, _address string, _pr
 	return ut
 }
 
-func UnlockBalance(_userID types.ID, _amount float64) bool {
+func UpdateTokenBalance(_utID types.ID, _amount float64) bool {
 	o := ORM()
 
-	ut := models.UserToken{Id: _userID, LockBalance: _amount}
+	ut := &models.UserToken{Id: _utID, TokenBalance: _amount}
 
-	if num, err := o.Update(ut, "LockBalance"); err != nil || num != 1 {
-		beego.Error("Lock balance failed", num, err)
+	if num, err := o.Update(ut, "TokenBalance"); err != nil || num != 1 {
+		beego.Error("update balance failed", num, err)
 		return false
 	}
 
 	return true
 }
 
-func UpdateLockBalance(_userID types.ID, _balance float64) bool {
+func UpdateLockBalance(_utID types.ID, _balance float64) bool {
 	o := ORM()
 
-	ut := &models.UserToken{Id: _userID, LockBalance: _balance}
+	ut := &models.UserToken{Id: _utID, LockBalance: _balance}
 
 	if num, err := o.Update(ut, "LockBalance"); err != nil || num != 1 {
 		beego.Error("Lock balance failed", num, err)
