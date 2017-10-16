@@ -110,8 +110,10 @@ func GetWithdrawal(_id types.ID) *models.Withdrawal {
 
 	if err == orm.ErrNoRows {
 		fmt.Println("No result found.")
+		return nil
 	} else if err == orm.ErrMissPK {
 		fmt.Println("No primary key found.")
+		return nil
 	} else {
 		fmt.Println(w.Id, w.Address)
 	}

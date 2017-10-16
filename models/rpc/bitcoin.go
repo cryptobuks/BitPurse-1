@@ -249,6 +249,10 @@ func (_self *BitcoinRpc) NewTx(_from []string, _to map[string]float64, _changeAd
 		beego.Error(err)
 		return ""
 	}
+	if len(inputs) == 0 {
+		beego.Error("[NewTx]No inputs")
+		return ""
+	}
 
 	var lockTime int64 = 0
 	if tx, err3 := client_.CreateRawTransaction(inputs, amounts, &lockTime); err3 == nil {
@@ -281,6 +285,8 @@ func (_self *BitcoinRpc) NewTx(_from []string, _to map[string]float64, _changeAd
 		if ok := _self.Call("fundrawtransaction", []interface{}{rawTx, o}, r); ok {
 			return r.Hex
 		}
+	} else {
+		beego.Error("[NewTx]CreateRawTransaction", err3)
 	}
 
 	return ""

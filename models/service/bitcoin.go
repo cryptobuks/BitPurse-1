@@ -142,15 +142,21 @@ func (_self *BitcoinService) HotRate() float64 {
 }
 
 func (_self *BitcoinService) GetBalanceByAddress(_address string) float64 {
-	if tx := _self.BitcoinRpc.ListUnspentByAddress(_address); tx != nil {
-		amount := 0.0
-		for _, v := range tx {
-			amount += v.Amount
+	if balanceMap := _self.BitcoinRpc.Address2BalanceMap(); balanceMap != nil {
+		if balance, ok := balanceMap[_address]; ok {
+			return balance
 		}
-		return amount
 	}
-
 	return -1
+
+	// balance will be locked if one transaction is sent but packed not into block yet
+	//if tx := _self.BitcoinRpc.ListUnspentByAddress(_address); tx != nil {
+	//	amount := 0.0
+	//	for _, v := range tx {
+	//		amount += v.Amount
+	//	}
+	//	return amount
+	//}
 }
 
 func (_self *BitcoinService) NewCold2HotTx() string {
@@ -296,15 +302,14 @@ func (_self *BitcoinService) Withdraw(_address string, _amount float64) string {
 func (_self *BitcoinService) WalletNotify(_txId string) *models.TokenRecord {
 	if tx := _self.BitcoinRpc.GetTransaction(_txId); tx != nil {
 		for _, v := range tx.Details {
-			if ut := dao.GetTokenByAddress(v.Address); ut != nil {
-				u := ut.User
-				if u == nil {
-					beego.Error("user is nil")
-					return nil
-				}
-
-				var tr *models.TokenRecord
-				if v.Category == "receive" {
+			var tr *models.TokenRecord
+			if v.Category == "receive" {
+				if ut := dao.GetTokenByAddress(v.Address); ut != nil {
+					u := ut.User
+					if u == nil {
+						beego.Error("user is nil")
+						return nil
+					}
 					if tx.Confirmations == 0 {
 						tr = dao.NewTokenRecord(u.Id, ut.Token.Id, enums.OP_RECEIVE, _txId)
 					} else {
@@ -312,21 +317,29 @@ func (_self *BitcoinService) WalletNotify(_txId string) *models.TokenRecord {
 						dao.UpdateTokenBalance(ut.Id, ut.TokenBalance+v.Amount)
 						dao.MarkRecordStatusDone(_txId)
 					}
-				} else if v.Category == "send" {
-					tr = dao.GetTokenRecordByTx(_txId)
-					if tx.Confirmations > 0 {
-						dao.UpdateLockBalance(ut.Id, ut.Unlock(v.Amount+_self.WithdrawFee()))
-						dao.UpdateTokenBalance(ut.Id, ut.TokenBalance-v.Amount)
-						dao.MarkRecordStatusDone(_txId)
-					}
+				} else {
+					beego.Error("[WalletNotify]No user token", v.Address)
 				}
-
-				return tr
-			} else {
-				beego.Warn("[WalletNotify]No user token", v.Address, _txId)
-				return nil
+			} else if v.Category == "send" {
+				if tr = dao.GetTokenRecordByTx(_txId); tr != nil {
+					if ut := dao.GetTokenByUser(tr.User.Id, tr.Token.Id); ut != nil {
+						if amount := -v.Amount; tx.Confirmations > 0 && amount > 0 {
+							dao.UpdateLockBalance(ut.Id, ut.Unlock(amount+_self.WithdrawFee()))
+							dao.UpdateTokenBalance(ut.Id, ut.TokenBalance-amount)
+							dao.MarkRecordStatusDone(_txId)
+						}
+					} else {
+						beego.Error("[WalletNotify]No user token", tr.User.Id, tr.Token.Id)
+					}
+				} else {
+					beego.Error("[WalletNotify]No token record", _txId)
+				}
 			}
+
+			return tr
 		}
 	}
+
+	beego.Error("[WalletNotify]No tx", _txId)
 	return nil
 }

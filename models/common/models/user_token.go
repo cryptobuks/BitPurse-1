@@ -23,8 +23,8 @@ func (_self *UserToken) Lock(_amount float64) float64 {
 }
 
 func (_self *UserToken) Unlock(_amount float64) float64 {
-	if _self.TokenBalance <= _amount {
+	if _self.LockBalance <= _amount {
 		return 0
 	}
-	return _self.TokenBalance - _amount
+	return _self.LockBalance - _amount
 }
