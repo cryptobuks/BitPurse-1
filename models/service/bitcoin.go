@@ -191,7 +191,7 @@ func (_self *BitcoinService) User2General() string {
 		hotAmount, ok1 := balanceMap[hotAddr]
 		coldAmount, ok2 := balanceMap[coldAddr]
 
-		if !ok1 || coldAmount == 0 || !ok2 || hotAmount == 0 {
+		if !ok1 || !ok2 {
 			beego.Error("no general amount", coldAmount, hotAmount)
 			return ""
 		}
