@@ -16,8 +16,7 @@ func MarkRecordStatusStored(_tokenID enums.TOKEN) bool {
 	set := fmt.Sprintf("record_status = record_status | %d", enums.TX_STORED)
 
 	qb.Update("token_record").Set(set).Where("token_id = ?").
-		And(fmt.Sprintf("record_status & %d =  %d", enums.TX_DONE|enums.TX_STORED, enums.TX_DONE|enums.TX_STORED)).
-		And(fmt.Sprintf("record_status & %d = 0", enums.TX_SPENT))
+		And(fmt.Sprintf("record_status & %d =  %d", enums.TX_DONE|enums.TX_STORED, enums.TX_DONE|enums.TX_STORED))
 
 	result, err1 := ORM().Raw(qb.String(), _tokenID).Exec()
 	if err1 != nil {
@@ -35,15 +34,43 @@ func MarkRecordStatusStored(_tokenID enums.TOKEN) bool {
 	return true
 }
 
-func MarkRecordStatusDone(_txID string) bool {
+func MarkSendListSent(_txID string, _address string) bool {
+
+	qb, _ := orm.NewQueryBuilder("mysql")
+
+	set := fmt.Sprintf("record_status = record_status | %d", enums.TX_SENT)
+
+	qb = qb.Update("token_record").Set(set)
+	// 这里是条件！！！ 不是行为 !!
+	qb = qb.Where("transaction_id = ?").And("record_address = ?").And("record_status & 1= ?").And("record_type = ?")
+
+	result, err1 := ORM().Raw(qb.String(), _txID, _address, enums.TX_UNKNOWN, enums.OP_SEND).Exec()
+	if err1 != nil {
+		beego.Error(err1)
+		return false
+	}
+
+	id, err2 := result.LastInsertId()
+	rows, err3 := result.RowsAffected()
+	if err2 != nil || err3 != nil {
+		beego.Error(err2, id, err3, rows)
+		return false
+	}
+
+	return true
+}
+
+func MarkRecordStatusDone(_txID string, _address string, _type enums.OP) bool {
 
 	qb, _ := orm.NewQueryBuilder("mysql")
 
 	set := fmt.Sprintf("record_status = record_status | %d", enums.TX_DONE)
 
-	qb.Update("token_record").Set(set).Where("transaction_id = ?")
+	qb = qb.Update("token_record").Set(set)
+	//  这里是条件 不是行为！！！
+	qb = qb.Where("transaction_id = ?").And("record_address = ?").And("record_status & 4 =  ?").And("record_type = ?")
 
-	result, err1 := ORM().Raw(qb.String(), _txID).Exec()
+	result, err1 := ORM().Raw(qb.String(), _txID, _address, enums.TX_SENT, _type).Exec()
 	if err1 != nil {
 		beego.Error(err1)
 		return false
@@ -136,11 +163,11 @@ func GetTokenByAddress(_address string) *models.UserToken {
 	return ut
 
 }
-func GetTokenRecordByTx(_txID string) *models.TokenRecord {
+func GetTokenRecordByTxAddress(_txID string, _address string, _type enums.OP) *models.TokenRecord {
 	o := ORM()
 
-	tr := models.TokenRecord{TransactionId: _txID}
-	err := o.Read(&tr, "TransactionID")
+	tr := models.TokenRecord{TransactionId: _txID, RecordAddress: _address, RecordType: _type}
+	err := o.Read(&tr, "TransactionId", "RecordAddress", "RecordType")
 	if err != nil {
 		beego.Error(err)
 		return nil
@@ -194,21 +221,50 @@ func UpdateLockBalance(_utID types.ID, _balance float64) bool {
 	return true
 }
 
+func GetSendList(_tokenID enums.TOKEN) []*models.TokenRecord {
+	ut := new(models.TokenRecord)
+	qs := ORM().QueryTable(ut).Filter("Token", _tokenID)
+	qs = qs.Filter("RecordType", enums.OP_SEND).Filter("TransactionId", "").Filter("RecordStatus", enums.TX_UNKNOWN)
+
+	records := make([]*models.TokenRecord, 0)
+	if num, err := qs.All(&records); num > 0 && err == nil {
+		return records
+	}
+	return nil
+}
+
+func UpdateSendListTx(_tokenID enums.TOKEN, _hash string) int64 {
+	qs := ORM().QueryTable(new(models.TokenRecord)).Filter("Token", _tokenID)
+	qs = qs.Filter("RecordType", enums.OP_SEND).Filter("TransactionId", "").Filter("RecordStatus", enums.TX_UNKNOWN)
+
+	if num, err := qs.Update(orm.Params{"TransactionId": _hash}); num > 0 && err == nil {
+		return num
+	}
+	return 0
+}
+
 //  1 deposit 2 withdraw
-func NewTokenRecord(_userId types.ID, _tokenID enums.TOKEN, _recordType enums.OP, _txId string) *models.TokenRecord {
+func NewTokenRecord(_userId types.ID, _tokenID enums.TOKEN, _recordType enums.OP, _txId string, _address string, _amount float64) *models.TokenRecord {
 
 	o := ORM()
 	// need confirm if needs query
 	u := &models.User{Id: _userId}
 	t := &models.Token{Id: _tokenID}
 
+	status := enums.TX_UNKNOWN
+	if _recordType == enums.OP_RECEIVE {
+		status = status | enums.TX_SENT
+	}
 	tr := &models.TokenRecord{
 		User:          u,
 		Token:         t,
 		TransactionId: _txId,
 
 		RecordType:   _recordType,
-		RecordStatus: enums.TX_UNKNOWN,
+		RecordStatus: status,
+
+		RecordAddress: _address,
+		RecordAmount:  _amount,
 	}
 	index, err := o.Insert(tr)
 	if err != nil {

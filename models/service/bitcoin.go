@@ -105,6 +105,10 @@ func (_self *BitcoinService) SendTx(_tx string) string {
 	return _self.BitcoinRpc.SendTx(_tx)
 }
 
+func (_self *BitcoinService) Transfer(_from []string, _to map[string]float64, _changeAddress string) string {
+	return _self.BitcoinRpc.Transfer(_from, _to, _changeAddress)
+}
+
 func (_self *BitcoinService) ValidateAddress(_address string) bool {
 	return _self.BitcoinRpc.ValidateAddress(_address)
 }
@@ -142,21 +146,15 @@ func (_self *BitcoinService) HotRate() float64 {
 }
 
 func (_self *BitcoinService) GetBalanceByAddress(_address string) float64 {
-	if balanceMap := _self.BitcoinRpc.Address2BalanceMap(); balanceMap != nil {
-		if balance, ok := balanceMap[_address]; ok {
-			return balance
+	// balance will be locked if one transaction is sent but packed not into block yet
+	if tx := _self.BitcoinRpc.ListUnspentByAddress(_address); tx != nil {
+		amount := 0.0
+		for _, v := range tx {
+			amount += v.Amount
 		}
+		return amount
 	}
 	return -1
-
-	// balance will be locked if one transaction is sent but packed not into block yet
-	//if tx := _self.BitcoinRpc.ListUnspentByAddress(_address); tx != nil {
-	//	amount := 0.0
-	//	for _, v := range tx {
-	//		amount += v.Amount
-	//	}
-	//	return amount
-	//}
 }
 
 func (_self *BitcoinService) NewCold2HotTx() string {
@@ -299,8 +297,10 @@ func (_self *BitcoinService) Withdraw(_address string, _amount float64) string {
 }
 
 // UTXO 比较特别, 所以接收和发送要分别处理
-func (_self *BitcoinService) WalletNotify(_txId string) *models.TokenRecord {
+func (_self *BitcoinService) WalletNotify(_txId string) []*models.TokenRecord {
 	if tx := _self.BitcoinRpc.GetTransaction(_txId); tx != nil {
+		records := make([]*models.TokenRecord, 0)
+		needSend := false
 		for _, v := range tx.Details {
 			var tr *models.TokenRecord
 			if v.Category == "receive" {
@@ -311,22 +311,27 @@ func (_self *BitcoinService) WalletNotify(_txId string) *models.TokenRecord {
 						return nil
 					}
 					if tx.Confirmations == 0 {
-						tr = dao.NewTokenRecord(u.Id, ut.Token.Id, enums.OP_RECEIVE, _txId)
+						tr = dao.NewTokenRecord(u.Id, ut.Token.Id, enums.OP_RECEIVE, _txId, v.Address, v.Amount)
 					} else {
-						tr = dao.GetTokenRecordByTx(_txId)
+						tr = dao.GetTokenRecordByTxAddress(_txId, v.Address, enums.OP_RECEIVE)
 						dao.UpdateTokenBalance(ut.Id, ut.TokenBalance+v.Amount)
-						dao.MarkRecordStatusDone(_txId)
+						dao.MarkRecordStatusDone(_txId, v.Address, enums.OP_RECEIVE)
 					}
 				} else {
 					beego.Error("[WalletNotify]No user token", v.Address)
 				}
 			} else if v.Category == "send" {
-				if tr = dao.GetTokenRecordByTx(_txId); tr != nil {
+				if tr = dao.GetTokenRecordByTxAddress(_txId, v.Address, enums.OP_SEND); tr != nil {
 					if ut := dao.GetTokenByUser(tr.User.Id, tr.Token.Id); ut != nil {
-						if amount := -v.Amount; tx.Confirmations > 0 && amount > 0 {
-							dao.UpdateLockBalance(ut.Id, ut.Unlock(amount+_self.WithdrawFee()))
-							dao.UpdateTokenBalance(ut.Id, ut.TokenBalance-amount)
-							dao.MarkRecordStatusDone(_txId)
+						if tx.Confirmations == 0 {
+							dao.MarkSendListSent(_txId, v.Address)
+						} else {
+							needSend = true
+							if amount := -v.Amount; amount > 0 {
+								dao.UpdateLockBalance(ut.Id, ut.Unlock(amount+_self.WithdrawFee()))
+								dao.UpdateTokenBalance(ut.Id, ut.TokenBalance-amount)
+								dao.MarkRecordStatusDone(_txId, v.Address, enums.OP_SEND)
+							}
 						}
 					} else {
 						beego.Error("[WalletNotify]No user token", tr.User.Id, tr.Token.Id)
@@ -336,8 +341,29 @@ func (_self *BitcoinService) WalletNotify(_txId string) *models.TokenRecord {
 				}
 			}
 
-			return tr
+			records = append(records, tr)
 		}
+
+		if needSend {
+			if list := dao.GetSendList(enums.TOKEN_BITCOIN); list != nil && len(list) > 0 {
+				to := make(map[string]float64)
+				sum := 0.0
+				for _, v := range list {
+					sum += v.RecordAmount
+					to[v.RecordAddress] = v.RecordAmount
+				}
+				hotBalance := _self.GetBalanceByAddress(_self.HotAddress())
+				if hotBalance > sum {
+					from := []string{_self.HotAddress()}
+					if hash := _self.Transfer(from, to, _self.HotAddress()); hash != "" {
+						if num := dao.UpdateSendListTx(enums.TOKEN_BITCOIN, hash); int(num) == len(to) {
+							return records
+						}
+					}
+				}
+			}
+		}
+		return records
 	}
 
 	beego.Error("[WalletNotify]No tx", _txId)

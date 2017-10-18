@@ -63,16 +63,16 @@ func (tc *TokenController) Withdraw(_token enums.TOKEN) {
 // @router /tokens/:_token/tx/:_txId/notify [get]
 func (tc *TokenController) WatchNotify(_token enums.TOKEN, _txId string) {
 	beego.Debug("notify watching..", _txId)
-	tr := service.WalletNotify(_token, _txId)
-	if tr == nil {
+	records := service.WalletNotify(_token, _txId)
+	if records == nil || len(records) == 0 {
 		beego.Error(_token, _txId)
 		tc.Abort("405")
 	} else {
 		type Result struct {
-			Address types.ID `json:"address"`
+			Num int `json:"num"`
 		}
 
-		r := Result{Address: tr.Id}
+		r := Result{Num: len(records)}
 		tc.Data["json"] = &r
 		tc.ServeJSON()
 	}

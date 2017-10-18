@@ -15,7 +15,7 @@ type IService interface {
 	TokenID() enums.TOKEN
 	Withdraw(_address string, _amount float64) string
 	NewAddress() (string, string)
-	WalletNotify(_txId string) *models.TokenRecord
+	WalletNotify(_txId string) []*models.TokenRecord
 	User2General() string
 	IsUserAddress(_address string) bool
 	HotAddress() string
@@ -28,6 +28,7 @@ type IService interface {
 	NewTx(_from []string, _to map[string]float64, _change string) string
 	SignTx(_tx string) (string, bool)
 	SendTx(_tx string) string
+	Transfer(_from []string, _to map[string]float64, _change string) string
 	ValidateAddress(_address string) bool
 	UnspentBalance() float64
 	CheckBalance() bool
@@ -64,28 +65,28 @@ func Withdraw(_tokenID enums.TOKEN, _userID types.ID, _withdrawalID types.ID, _a
 		ut := dao.GetTokenByUser(_userID, _tokenID)
 		balance := ut.Balance()
 		if balance < _amount {
-			beego.Error("no enough balance", _amount, ts.WithdrawFee())
+			beego.Error("[Withdraw]no enough balance", balance, _amount, ut.TokenBalance, ut.LockBalance)
 			return nil
 		}
 
-		amount := _amount - ts.WithdrawFee()
 		hotBalance := ts.GetBalanceByAddress(ts.HotAddress())
-		if hotBalance < amount {
-			beego.Error("no enough hot balance", _amount, hotBalance)
-			return nil
+		hash := ""
+		if hotBalance >= _amount {
+			if hash = ts.Withdraw(w.Address, _amount); hash == "" {
+				return nil
+			}
 		}
-
-		if hash := ts.Withdraw(w.Address, amount); hash != "" {
-			dao.NewTokenRecord(_userID, ts.TokenID(), enums.OP_SEND, hash)
-			dao.UpdateLockBalance(ut.Id, ut.Lock(_amount))
+		if tr := dao.NewTokenRecord(_userID, ts.TokenID(), enums.OP_SEND, hash, w.Address, _amount); tr != nil {
+			if ok := dao.UpdateLockBalance(ut.Id, ut.Lock(_amount)); ok {
+				return w
+			}
 		}
-		return w
 	}
 
 	return nil
 }
 
-func WalletNotify(_token enums.TOKEN, _txId string) *models.TokenRecord {
+func WalletNotify(_token enums.TOKEN, _txId string) []*models.TokenRecord {
 	if ts := Get(_token); ts != nil {
 		return ts.WalletNotify(_txId)
 	}

@@ -11,10 +11,10 @@ const (
 type TX uint64
 
 const (
-	TX_UNKNOWN TX = 1 << iota
-	TX_DONE
-	TX_SPENT
-	TX_STORED
+	TX_UNKNOWN TX = 1 << iota // just add empty tx to db, waiting for previous tx done
+	TX_DONE                   // tx has at least 1 confirmation, fund in user account
+	TX_SENT                   // tx sent to network with zero conformation
+	TX_STORED                 // fund moved from user account to hot account
 )
 
 type OP uint8

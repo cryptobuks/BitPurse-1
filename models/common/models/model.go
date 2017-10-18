@@ -8,7 +8,7 @@ import (
 
 type Withdrawal struct {
 	Id      types.ID
-	User    *User `orm:"rel(fk)"`
+	User    *User  `orm:"rel(fk)"`
 	Address string
 	Tag     string
 	Token   *Token `orm:"rel(fk)"`
@@ -16,13 +16,13 @@ type Withdrawal struct {
 
 type User struct {
 	Id           types.ID
-	UserName     string `orm:"unique"`
+	UserName     string         `orm:"unique"`
 	UserPassword string
 	MailAddress  string
 	MailCode     string
-	PhoneNo      string `orm:"size(11);unique"`
+	PhoneNo      string         `orm:"size(11);unique"`
 	CountryCode  string
-	CreateTime   time.Time `orm:"auto_now_add;type(datetime)"`
+	CreateTime   time.Time      `orm:"auto_now_add;type(datetime)"`
 	UserPortrait string
 	UserIntro    string
 	Tokens       []*UserToken   `orm:"reverse(many)"`
@@ -42,8 +42,10 @@ type TokenRecord struct {
 	Id            types.ID
 	RecordTime    time.Time `orm:"auto_now_add;type(datetime)"`
 	RecordType    enums.OP
-	Token         *Token `orm:"rel(fk)"`
-	TransactionId string `orm:"unique"`
-	User          *User  `orm:"rel(fk)"`
+	Token         *Token    `orm:"rel(fk)"`
+	TransactionId string
+	User          *User     `orm:"rel(fk)"`
 	RecordStatus  enums.TX
+	RecordAddress string
+	RecordAmount  float64
 }
