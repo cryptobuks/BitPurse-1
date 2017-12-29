@@ -1,9 +1,9 @@
 package controllers
 
 import (
-	"git.coding.net/zhouhuangjing/BitPurse/models/common/enums"
-	"git.coding.net/zhouhuangjing/BitPurse/models/common/types"
-	"git.coding.net/zhouhuangjing/BitPurse/models/service"
+	"../models/common/enums"
+	"../models/common/types"
+	"../models/service"
 	"github.com/astaxie/beego"
 	"fmt"
 )

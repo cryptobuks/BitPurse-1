@@ -1,13 +1,13 @@
 package main
 
 import (
-	_ "git.coding.net/zhouhuangjing/BitPurse/routers"
+	_ "./routers"
 
 	"github.com/astaxie/beego"
-	"git.coding.net/zhouhuangjing/BitPurse/models/dao"
-	"git.coding.net/zhouhuangjing/BitPurse/models/service"
-	"git.coding.net/zhouhuangjing/BitPurse/models/cache"
-	"git.coding.net/zhouhuangjing/BitPurse/models/rpc"
+	"./models/dao"
+	"./models/service"
+	"./models/cache"
+	"./models/rpc"
 )
 
 func main() {

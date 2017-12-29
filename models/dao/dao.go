@@ -2,9 +2,9 @@ package dao
 
 import (
 	"fmt"
-	"git.coding.net/zhouhuangjing/BitPurse/models/common/enums"
-	"git.coding.net/zhouhuangjing/BitPurse/models/common/models"
-	"git.coding.net/zhouhuangjing/BitPurse/models/common/types"
+	"../common/enums"
+	"../common/models"
+	"../common/types"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/orm"
 )

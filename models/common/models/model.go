@@ -1,8 +1,8 @@
 package models
 
 import (
-	"git.coding.net/zhouhuangjing/BitPurse/models/common/enums"
-	"git.coding.net/zhouhuangjing/BitPurse/models/common/types"
+	"../enums"
+	"../types"
 	"time"
 )
 

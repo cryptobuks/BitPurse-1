@@ -2,11 +2,11 @@ package service
 
 import (
 	"testing"
-	"git.coding.net/zhouhuangjing/BitPurse/models/common/enums"
+	"../models/common/enums"
 	"path/filepath"
 	"github.com/astaxie/beego"
 	"os"
-	"git.coding.net/zhouhuangjing/BitPurse/models/rpc"
+	"../models/rpc"
 	"time"
 	"fmt"
 )

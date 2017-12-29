@@ -1,7 +1,7 @@
 package routers
 
 import (
-	"git.coding.net/zhouhuangjing/BitPurse/controllers"
+	"../controllers"
 	"github.com/astaxie/beego"
 )
 

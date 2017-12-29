@@ -1,10 +1,10 @@
 package service
 
 import (
-	"git.coding.net/zhouhuangjing/BitPurse/models/common/enums"
-	"git.coding.net/zhouhuangjing/BitPurse/models/common/models"
-	"git.coding.net/zhouhuangjing/BitPurse/models/dao"
-	"git.coding.net/zhouhuangjing/BitPurse/models/rpc"
+	"../common/enums"
+	"../common/models"
+	"../dao"
+	"../rpc"
 	"github.com/astaxie/beego"
 )
 
