@@ -2,7 +2,7 @@ package tests
 
 import (
 	"fmt"
-	mycache "git.coding.net/zhouhuangjing/BitPurse/models/cache"
+	mycache "github.com/forchain/BitPurse/models/cache"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/cache"
 	"github.com/astaxie/beego/httplib"
