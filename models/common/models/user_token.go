@@ -1,6 +1,6 @@
 package models
 
-import "github.com/forchain/BitPurse/models/common/types"
+import "github.com/Newtrong/BitPurse/models/common/types"
 
 type UserToken struct {
 	Id   types.ID

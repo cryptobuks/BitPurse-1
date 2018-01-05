@@ -1,8 +1,8 @@
 package models
 
 import (
-	"github.com/forchain/BitPurse/models/common/enums"
-	"github.com/forchain/BitPurse/models/common/types"
+	"github.com/Newtrong/BitPurse/models/common/enums"
+	"github.com/Newtrong/BitPurse/models/common/types"
 	"time"
 )
 

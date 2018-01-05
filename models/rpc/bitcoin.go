@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/forchain/BitPurse/models/common/configs"
+	"github.com/Newtrong/BitPurse/models/common/configs"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/httplib"
 	"github.com/btcsuite/btcd/btcjson"

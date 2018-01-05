@@ -2,7 +2,7 @@ package dao
 
 import (
 	"github.com/astaxie/beego/orm"
-	"github.com/forchain/BitPurse/models/common/models"
+	"github.com/Newtrong/BitPurse/models/common/models"
 )
 
 func registerModels() {

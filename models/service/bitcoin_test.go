@@ -2,11 +2,11 @@ package service
 
 import (
 	"testing"
-	"github.com/forchain/BitPurse/models/common/enums"
+	"github.com/Newtrong/BitPurse/models/common/enums"
 	"path/filepath"
 	"github.com/astaxie/beego"
 	"os"
-	"github.com/forchain/BitPurse/models/rpc"
+	"github.com/Newtrong/BitPurse/models/rpc"
 	"time"
 	"fmt"
 )

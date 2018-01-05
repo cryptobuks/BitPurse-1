@@ -1,13 +1,13 @@
 package dao
 
 import (
-	"github.com/forchain/BitPurse/models/common/enums"
-	"github.com/forchain/BitPurse/models/common/models"
+	"github.com/Newtrong/BitPurse/models/common/enums"
+	"github.com/Newtrong/BitPurse/models/common/models"
 	"github.com/astaxie/beego"
 	"math/rand"
 	"os"
 	"testing"
-	"github.com/forchain/BitPurse/tests"
+	"github.com/Newtrong/BitPurse/tests"
 )
 
 func TestCreateTables(t *testing.T) {
